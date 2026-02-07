@@ -131,6 +131,7 @@ class AdminController extends AbstractController
 
         $weekdayTime = $request->request->get('weekday_time');
         $weekendTime = $request->request->get('weekend_time');
+        $role = $request->request->get('role');
 
         try {
             if ($weekdayTime) {
@@ -139,11 +140,14 @@ class AdminController extends AbstractController
             if ($weekendTime) {
                 $subscription->setWeekendTime(new \DateTime($weekendTime));
             }
+            if ($role) {
+                $subscription->setRole($role);
+            }
 
             $this->entityManager->flush();
-            $this->addFlash('success', 'Время отправки обновлено');
+            $this->addFlash('success', 'Настройки обновлены');
         } catch (\Exception $e) {
-            $this->addFlash('error', 'Ошибка при обновлении времени');
+            $this->addFlash('error', 'Ошибка при обновлении настроек');
         }
 
         return $this->redirectToRoute('admin_dashboard');

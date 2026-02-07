@@ -54,11 +54,13 @@ class SendScheduledComplimentHandler
             // Send compliment
             try {
                 $firstName = $subscription->getTelegramFirstName();
-                $compliment = $this->deepSeekService->generateCompliment($firstName);
+                $role = $subscription->getRole();
+                $compliment = $this->deepSeekService->generateCompliment($firstName, $role);
 
+                $emoji = $role === 'sister' ? '✨' : '💝';
                 $result = $this->telegramService->sendMessage(
                     $subscription->getTelegramChatId(),
-                    "💝 {$compliment}"
+                    "{$emoji} {$compliment}"
                 );
 
                 if ($result) {

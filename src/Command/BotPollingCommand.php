@@ -119,11 +119,9 @@ class BotPollingCommand extends Command
         $welcomeText = <<<TEXT
 Привет, {$firstName}! 👋
 
-Я бот, который будет радовать тебя романтичными комплиментами каждый день! 💝
+Я бот, который будет радовать тебя тёплыми словами каждый день! 💌
 
-📅 <b>Расписание:</b>
-• Будни (Пн-Пт): 7:00
-• Выходные (Сб-Вс): 9:00
+✨ Каждый день в установленное время ты получишь приятное сообщение — комплимент, поддержку или мотивацию!
 
 Используй кнопки ниже для управления подпиской.
 TEXT;
@@ -165,12 +163,12 @@ TEXT;
 
         $this->telegramService->answerCallbackQuery(
             $callbackQueryId,
-            'Отлично! Теперь ты будешь получать комплименты! 💝'
+            'Отлично! Теперь ты будешь получать приятные сообщения! 💌'
         );
 
         $this->telegramService->sendMessage(
             $chatId,
-            "✅ Подписка активирована!\n\nБуду радовать тебя комплиментами каждый день! 💕"
+            "✅ Подписка активирована!\n\nБуду радовать тебя каждый день! 💕"
         );
     }
 
@@ -205,12 +203,17 @@ TEXT;
         $this->telegramService->answerCallbackQuery($callbackQueryId);
 
         $firstName = $callbackQuery['from']['first_name'] ?? null;
-        $compliment = $this->deepSeekService->generateCompliment($firstName);
+        
+        // Get role from subscription or default to 'wife'
+        $subscription = $this->subscriptionRepository->findOneByChatId($chatId);
+        $role = $subscription ? $subscription->getRole() : 'wife';
+        
+        $compliment = $this->deepSeekService->generateCompliment($firstName, $role);
 
-        $this->telegramService->sendMessage($chatId, "💝 {$compliment}");
+        $emoji = $role === 'sister' ? '✨' : '💝';
+        $this->telegramService->sendMessage($chatId, "{$emoji} {$compliment}");
 
         // Update last compliment timestamp if subscribed
-        $subscription = $this->subscriptionRepository->findOneByChatId($chatId);
         if ($subscription) {
             $subscription->setLastComplimentAt(new \DateTime());
             $this->entityManager->flush();

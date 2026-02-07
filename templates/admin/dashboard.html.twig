@@ -241,6 +241,7 @@
                             <th>Пользователь</th>
                             <th>Telegram ID</th>
                             <th>Статус</th>
+                            <th>Роль</th>
                             <th>Время (будни/выходные)</th>
                             <th>Последний комплимент</th>
                             <th>Дата подписки</th>
@@ -269,7 +270,11 @@
                                 </td>
                                 <td>
                                     <form method="post" action="{{ path('admin_subscription_update_times', {id: sub.id}) }}" class="time-form">
-                                        <div class="time-inputs">
+                                        <select name="role" style="padding: 5px; border: 1px solid #ddd; border-radius: 4px; width: 100%;">
+                                            <option value="wife" {% if sub.role == 'wife' %}selected{% endif %}>💝 Жена</option>
+                                            <option value="sister" {% if sub.role == 'sister' %}selected{% endif %}>✨ Сестра</option>
+                                        </select>
+                                        <div class="time-inputs" style="margin-top: 10px;">
                                             <label>
                                                 <span>🗓️ Будни:</span>
                                                 <input type="time" name="weekday_time" value="{{ sub.weekdayTime|date('H:i') }}" required>

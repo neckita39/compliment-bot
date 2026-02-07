@@ -41,12 +41,16 @@ class Subscription
     #[ORM\Column(type: Types::TIME_MUTABLE)]
     private ?\DateTimeInterface $weekendTime = null;
 
+    #[ORM\Column(length: 50)]
+    private string $role = 'wife';
+
     public function __construct()
     {
         $this->createdAt = new \DateTime();
         // Default times: 7:00 for weekdays, 9:00 for weekends
         $this->weekdayTime = new \DateTime('07:00:00');
         $this->weekendTime = new \DateTime('09:00:00');
+        $this->role = 'wife';
     }
 
     public function getId(): ?int
@@ -146,6 +150,18 @@ class Subscription
     public function setWeekendTime(\DateTimeInterface $weekendTime): static
     {
         $this->weekendTime = $weekendTime;
+
+        return $this;
+    }
+
+    public function getRole(): string
+    {
+        return $this->role;
+    }
+
+    public function setRole(string $role): static
+    {
+        $this->role = $role;
 
         return $this;
     }
