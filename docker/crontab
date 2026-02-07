@@ -1,0 +1,2 @@
+# Send daily compliments at 9:00 Moscow time (UTC+3 = 6:00 UTC)
+0 6 * * * cd /var/www/html && php bin/console app:send-daily-compliments >> /var/log/cron/compliments.log 2>&1
