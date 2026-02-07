@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# Install dependencies FIRST (before anything else)
+echo "📚 Installing Composer dependencies..."
+composer install --no-interaction --optimize-autoloader
+
 echo "🔧 Waiting for database to be ready..."
 until php bin/console dbal:run-sql "SELECT 1" > /dev/null 2>&1; do
     echo "⏳ Database is unavailable - sleeping"
@@ -8,12 +12,6 @@ until php bin/console dbal:run-sql "SELECT 1" > /dev/null 2>&1; do
 done
 
 echo "✅ Database is ready!"
-
-# Install dependencies if needed
-if [ ! -d "vendor" ] || [ ! -f "vendor/autoload.php" ]; then
-    echo "📚 Installing Composer dependencies..."
-    composer install --no-interaction --optimize-autoloader
-fi
 
 # Check if subscriptions table exists and mark migration as executed
 if php bin/console dbal:run-sql "SELECT 1 FROM subscriptions LIMIT 1" > /dev/null 2>&1; then
