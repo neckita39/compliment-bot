@@ -1,17 +1,15 @@
 # Compliment Bot 💝
 
-Telegram bot that sends romantic compliments to your loved ones at scheduled times. Powered by DeepSeek AI.
+Telegram bot that sends personalized messages to your loved ones at scheduled times. Powered by GigaChat AI.
 
 ## Features
 
-- 💝 **Subscribe/Unsubscribe** - Easy subscription management
-- 💌 **Instant Compliments** - Get a compliment anytime with a button press
-- ⏰ **Scheduled Delivery**:
-  - Weekdays (Mon-Fri): 7:00 AM
-  - Weekends (Sat-Sun): 9:00 AM
-- 🤖 **AI-Generated** - Unique compliments powered by DeepSeek
-- 🔄 **Fallback System** - Pre-written compliments if AI is unavailable
-- 🖥️ **Web Admin Panel** - Manage subscriptions and view statistics
+- 💝 **Role-Based Messages** - Different message types for different people (romantic compliments for wife, motivational messages for sister)
+- 💌 **Instant Messages** - Get a message anytime with a button press
+- ⏰ **Flexible Scheduling** - Configure individual send times for each subscriber
+- 🤖 **AI-Generated** - Unique messages powered by GigaChat
+- 🖥️ **Web Admin Panel** - Manage subscriptions, roles, and schedules
+- 🏥 **Health Check** - Built-in diagnostic tools
 
 ## Tech Stack
 
@@ -19,7 +17,7 @@ Telegram bot that sends romantic compliments to your loved ones at scheduled tim
 - Symfony 6.4
 - PostgreSQL 15
 - Docker & Docker Compose
-- DeepSeek API
+- GigaChat API (Sberbank)
 - Symfony Scheduler & Messenger
 
 ## Setup
@@ -28,7 +26,7 @@ Telegram bot that sends romantic compliments to your loved ones at scheduled tim
 
 - Docker and Docker Compose
 - Telegram Bot Token from [@BotFather](https://t.me/BotFather)
-- DeepSeek API Key from [platform.deepseek.com](https://platform.deepseek.com/api_keys)
+- GigaChat API Credentials from [developers.sber.ru](https://developers.sber.ru/portal/products/gigachat)
 
 ### Installation
 
@@ -46,7 +44,9 @@ cp .env.example .env
 Edit `.env` and set:
 ```env
 TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
-DEEPSEEK_API_KEY=your_deepseek_api_key_here
+GIGACHAT_CLIENT_ID=your_gigachat_client_id
+GIGACHAT_CLIENT_SECRET=your_gigachat_client_secret
+ADMIN_PASSWORD=your_secure_password
 ```
 
 3. **Start Docker containers**
@@ -54,20 +54,19 @@ DEEPSEEK_API_KEY=your_deepseek_api_key_here
 docker-compose up -d
 ```
 
-4. **Install dependencies**
+The bot will start automatically via Supervisor. All dependencies will be installed and migrations will run automatically.
+
+4. **Verify everything works**
 ```bash
-docker-compose exec app composer install
+docker-compose exec app php bin/check-health.php
 ```
 
-5. **Run database migrations**
-```bash
-docker-compose exec app php bin/console doctrine:migrations:migrate --no-interaction
-```
-
-6. **Restart supervisor to start the bot**
-```bash
-docker-compose restart supervisor
-```
+This command checks:
+- ✅ Environment variables
+- ✅ PostgreSQL connection
+- ✅ Telegram Bot API
+- ✅ GigaChat API
+- ✅ File system permissions
 
 ## Usage
 
@@ -103,9 +102,9 @@ In Telegram, start a chat with your bot and use:
 - `/start` - Initialize bot and show menu
 
 Use the inline keyboard buttons:
-- **💝 Подписаться** - Subscribe to daily compliments
+- **💝 Подписаться** - Subscribe to daily messages
 - **🚫 Отписаться** - Unsubscribe
-- **💌 Получить комплимент** - Get instant compliment
+- **💌 Получить комплимент** - Get instant message
 
 ## Web Admin Panel
 
@@ -115,10 +114,11 @@ Access the web admin panel to manage subscriptions:
 2. **Login:** Use the password from your `.env` file (`ADMIN_PASSWORD`)
 3. **Features:**
    - View all subscriptions
-   - See statistics (total, active, inactive)
+   - Configure role (Wife 💝 or Sister ✨)
+   - Set individual send times (weekday/weekend)
    - Activate/deactivate subscriptions
    - Delete subscriptions
-   - View last compliment time
+   - View last message timestamp
 
 **Screenshots:**
 - Dashboard shows subscriber list with Telegram username, chat ID, status
@@ -143,19 +143,29 @@ Access the web admin panel to manage subscriptions:
 ├── src/
 │   ├── Command/
 │   │   └── BotPollingCommand.php      # Long polling handler
+│   ├── Controller/
+│   │   └── AdminController.php        # Web admin panel
 │   ├── Entity/
-│   │   └── Subscription.php           # User subscription model
+│   │   ├── Subscription.php           # User subscription model
+│   │   └── ComplimentHistory.php      # Message history
 │   ├── Message/
 │   │   └── SendScheduledCompliment.php # Queue message
 │   ├── MessageHandler/
 │   │   └── SendScheduledComplimentHandler.php # Queue handler
 │   ├── Repository/
-│   │   └── SubscriptionRepository.php
+│   │   ├── SubscriptionRepository.php
+│   │   └── ComplimentHistoryRepository.php
 │   ├── Scheduler/
 │   │   └── ComplimentSchedule.php     # Cron schedule
 │   └── Service/
-│       ├── DeepSeekService.php        # AI compliment generation
+│       ├── ComplimentGeneratorInterface.php # AI service interface
+│       ├── GigaChatService.php        # GigaChat AI integration
+│       ├── DeepSeekService.php        # DeepSeek AI (alternative)
 │       └── TelegramService.php        # Telegram API wrapper
+├── bin/
+│   ├── check-health.php            # System health check
+│   ├── test-gigachat.php           # GigaChat API test
+│   └── console                     # Symfony console
 ├── .env                         # Environment variables
 ├── composer.json               # PHP dependencies
 ├── docker-compose.yml          # Docker setup
@@ -164,28 +174,38 @@ Access the web admin panel to manage subscriptions:
 
 ## Development
 
-### Adding new compliments
+### Health Check
 
-Edit fallback compliments in `src/Service/DeepSeekService.php`:
+Run comprehensive system check:
 
-```php
-private const FALLBACK_COMPLIMENTS = [
-    'Your new compliment here...',
-    // ...
-];
+```bash
+# Inside Docker
+docker-compose exec app php bin/check-health.php
+
+# Or locally (if dependencies installed)
+php bin/check-health.php
 ```
+
+This verifies:
+- Environment variables are configured
+- PostgreSQL is accessible and has subscriptions table
+- Telegram Bot API is working
+- GigaChat API is working (gets token and generates test message)
+- File system permissions are correct
+
+### Testing GigaChat API
+
+```bash
+docker-compose exec app php bin/test-gigachat.php
+```
+
+### Changing role prompts
+
+Edit `src/Service/GigaChatService.php` → `buildPrompt()` method to customize messages for each role.
 
 ### Changing schedule
 
-Edit `src/Scheduler/ComplimentSchedule.php`:
-
-```php
-// Weekdays at 7:00 AM
-RecurringMessage::cron('0 7 * * 1-5', new SendScheduledCompliment('weekday'))
-
-// Weekends at 9:00 AM
-RecurringMessage::cron('0 9 * * 0,6', new SendScheduledCompliment('weekend'))
-```
+Schedules are now configured per-subscriber in the admin panel. The scheduler runs every minute and checks if it's time to send messages.
 
 ### Database access
 
@@ -194,6 +214,12 @@ docker-compose exec db psql -U app -d app
 ```
 
 ## Troubleshooting
+
+### Quick diagnostic
+
+```bash
+docker-compose exec app php bin/check-health.php
+```
 
 ### Bot not responding
 
@@ -224,13 +250,21 @@ docker-compose exec supervisor tail -f /var/log/supervisor/scheduler.out.log
 docker-compose exec app php bin/console messenger:stats
 ```
 
-### DeepSeek API errors
+### GigaChat API errors
 
-The bot will automatically use fallback compliments if DeepSeek API fails. Check logs:
+If messages fail to send, check:
 
+1. API credentials are correct:
+```bash
+docker-compose exec app php bin/test-gigachat.php
+```
+
+2. Check application logs:
 ```bash
 docker-compose exec app tail -f var/log/dev.log
 ```
+
+API errors are now sent directly to users in Telegram so they know what went wrong.
 
 ## License
 
