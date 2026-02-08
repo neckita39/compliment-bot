@@ -10,33 +10,6 @@ class DeepSeekService
     private const API_URL = 'https://api.deepseek.com/v1/chat/completions';
     private const MODEL = 'deepseek-chat';
 
-    private const FALLBACK_COMPLIMENTS = [
-        'wife' => [
-            'Ты освещаешь мой мир своей улыбкой каждый день.',
-            'Твоя доброта делает мир лучше.',
-            'Рядом с тобой я становлюсь лучшей версией себя.',
-            'Ты самое красивое, что случилось в моей жизни.',
-            'Твои глаза — мои любимые звёзды.',
-            'Каждый день с тобой — подарок.',
-            'Ты умеешь найти свет даже в самые тёмные дни.',
-            'Твоя улыбка — лучшее лекарство от всех проблем.',
-            'Ты вдохновляешь меня быть лучше.',
-            'С тобой даже обычные моменты становятся волшебными.',
-        ],
-        'sister' => [
-            'Ты такая умничка! Я горжусь тобой каждый день! 🌟',
-            'У тебя получится всё, что ты задумаешь! Верь в себя! 💪',
-            'Ты делаешь мир ярче своей улыбкой! ☀️',
-            'Какая же ты талантливая! Продолжай в том же духе! 🎨',
-            'Ты справляешься с учёбой просто отлично! Я в тебя верю! 📚',
-            'Твоя доброта и отзывчивость — это твоя суперсила! ❤️',
-            'Каждый день ты узнаёшь что-то новое, и это здорово! 🌈',
-            'Не бойся ошибаться — так мы все учимся! Ты молодец! 🚀',
-            'Твоя любознательность вдохновляет! Задавай вопросы! 💡',
-            'Помни: ты можешь больше, чем думаешь! Вперёд! 🌺',
-        ],
-    ];
-
     public function __construct(
         private HttpClientInterface $httpClient,
         private LoggerInterface $logger,
@@ -47,42 +20,36 @@ class DeepSeekService
     public function generateCompliment(?string $name = null, string $role = 'wife', array $previousCompliments = []): string
     {
         if (empty($this->apiKey) || $this->apiKey === 'your_deepseek_api_key_here') {
-            return $this->getFallbackCompliment($role);
+            throw new \RuntimeException('❌ DeepSeek API key не настроен. Укажите DEEPSEEK_API_KEY в .env файле.');
         }
 
-        try {
-            $prompt = $this->buildPrompt($name, $role, $previousCompliments);
+        $prompt = $this->buildPrompt($name, $role, $previousCompliments);
 
-            $response = $this->httpClient->request('POST', self::API_URL, [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'Authorization' => 'Bearer ' . $this->apiKey,
-                ],
-                'json' => [
-                    'model' => self::MODEL,
-                    'messages' => [
-                        [
-                            'role' => 'user',
-                            'content' => $prompt,
-                        ],
+        $response = $this->httpClient->request('POST', self::API_URL, [
+            'headers' => [
+                'Content-Type' => 'application/json',
+                'Authorization' => 'Bearer ' . $this->apiKey,
+            ],
+            'json' => [
+                'model' => self::MODEL,
+                'messages' => [
+                    [
+                        'role' => 'user',
+                        'content' => $prompt,
                     ],
-                    'max_tokens' => 200,
-                    'temperature' => 0.8,
                 ],
-            ]);
+                'max_tokens' => 200,
+                'temperature' => 0.8,
+            ],
+        ]);
 
-            $data = $response->toArray();
+        $data = $response->toArray();
 
-            if (isset($data['choices'][0]['message']['content'])) {
-                return trim($data['choices'][0]['message']['content']);
-            }
-
-            $this->logger->warning('Unexpected DeepSeek API response', ['response' => $data]);
-            return $this->getFallbackCompliment($role);
-        } catch (\Exception $e) {
-            $this->logger->error('DeepSeek API error', ['error' => $e->getMessage()]);
-            return $this->getFallbackCompliment($role);
+        if (isset($data['choices'][0]['message']['content'])) {
+            return trim($data['choices'][0]['message']['content']);
         }
+
+        throw new \RuntimeException('❌ DeepSeek API вернул неожиданный ответ (нет content в ответе)');
     }
 
     private function buildPrompt(?string $name, string $role, array $previousCompliments = []): string
@@ -133,11 +100,5 @@ DEDUP;
         }
 
         return $prompt;
-    }
-
-    private function getFallbackCompliment(string $role): string
-    {
-        $compliments = self::FALLBACK_COMPLIMENTS[$role] ?? self::FALLBACK_COMPLIMENTS['wife'];
-        return $compliments[array_rand($compliments)];
     }
 }

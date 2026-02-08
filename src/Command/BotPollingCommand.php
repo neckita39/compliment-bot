@@ -215,21 +215,38 @@ TEXT;
             ? $this->complimentHistoryRepository->findRecentTexts($subscription)
             : [];
 
-        $compliment = $this->deepSeekService->generateCompliment($firstName, $role, $previousCompliments);
+        try {
+            $compliment = $this->deepSeekService->generateCompliment($firstName, $role, $previousCompliments);
 
-        $emoji = $role === 'sister' ? '✨' : '💝';
-        $this->telegramService->sendMessage($chatId, "{$emoji} {$compliment}");
+            $emoji = $role === 'sister' ? '✨' : '💝';
+            $this->telegramService->sendMessage($chatId, "{$emoji} {$compliment}");
 
-        // Update last compliment timestamp and save history
-        if ($subscription) {
-            $subscription->setLastComplimentAt(new \DateTime());
+            // Update last compliment timestamp and save history
+            if ($subscription) {
+                $subscription->setLastComplimentAt(new \DateTime());
 
-            $history = new ComplimentHistory();
-            $history->setSubscription($subscription);
-            $history->setComplimentText($compliment);
-            $this->entityManager->persist($history);
+                $history = new ComplimentHistory();
+                $history->setSubscription($subscription);
+                $history->setComplimentText($compliment);
+                $this->entityManager->persist($history);
 
-            $this->entityManager->flush();
+                $this->entityManager->flush();
+            }
+        } catch (\Symfony\Component\HttpClient\Exception\ClientException $e) {
+            // Parse API error response
+            try {
+                $response = $e->getResponse();
+                $data = $response->toArray(false);
+                $errorMsg = $data['error']['message'] ?? 'Unknown error';
+                $this->telegramService->sendMessage(
+                    $chatId, 
+                    "❌ Ошибка DeepSeek API:\n\n{$errorMsg}\n\nПроверьте баланс на platform.deepseek.com"
+                );
+            } catch (\Exception $ex) {
+                $this->telegramService->sendMessage($chatId, "❌ Ошибка API: " . $e->getMessage());
+            }
+        } catch (\Exception $e) {
+            $this->telegramService->sendMessage($chatId, "❌ Ошибка: " . $e->getMessage());
         }
     }
 }

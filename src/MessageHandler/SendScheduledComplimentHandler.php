@@ -87,8 +87,38 @@ class SendScheduledComplimentHandler
                         'chat_id' => $subscription->getTelegramChatId(),
                     ]);
                 }
+            } catch (\Symfony\Component\HttpClient\Exception\ClientException $e) {
+                // DeepSeek API error - send error message to user
+                try {
+                    $response = $e->getResponse();
+                    $data = $response->toArray(false);
+                    $errorMsg = $data['error']['message'] ?? 'Unknown error';
+                    
+                    $this->telegramService->sendMessage(
+                        $subscription->getTelegramChatId(),
+                        "❌ Не удалось сгенерировать сообщение:\n\n{$errorMsg}\n\nПроверьте баланс на platform.deepseek.com"
+                    );
+                } catch (\Exception $ex) {
+                    $this->telegramService->sendMessage(
+                        $subscription->getTelegramChatId(),
+                        "❌ Ошибка API: " . $e->getMessage()
+                    );
+                }
+                
+                $errorCount++;
+                $this->logger->error('DeepSeek API error', [
+                    'chat_id' => $subscription->getTelegramChatId(),
+                    'error' => $e->getMessage(),
+                ]);
             } catch (\Exception $e) {
                 $errorCount++;
+                
+                // Send error to user
+                $this->telegramService->sendMessage(
+                    $subscription->getTelegramChatId(),
+                    "❌ Ошибка: " . $e->getMessage()
+                );
+                
                 $this->logger->error('Error sending compliment', [
                     'chat_id' => $subscription->getTelegramChatId(),
                     'error' => $e->getMessage(),
