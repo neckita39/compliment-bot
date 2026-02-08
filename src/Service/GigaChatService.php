@@ -22,7 +22,7 @@ class GigaChatService implements ComplimentGeneratorInterface
     ) {
     }
 
-    public function generateCompliment(?string $name = null, string $role = 'wife'): string
+    public function generateCompliment(?string $name = null, string $role = 'wife', array $previousCompliments = []): string
     {
         if (empty($this->clientId) || $this->clientId === 'your_gigachat_client_id') {
             throw new \RuntimeException('❌ GigaChat credentials не настроены. Укажите GIGACHAT_CLIENT_ID и GIGACHAT_CLIENT_SECRET в .env файле.');
@@ -31,7 +31,7 @@ class GigaChatService implements ComplimentGeneratorInterface
         // Get or refresh access token
         $this->ensureValidToken();
 
-        $prompt = $this->buildPrompt($name, $role);
+        $prompt = $this->buildPrompt($name, $role, $previousCompliments);
 
         $response = $this->httpClient->request('POST', self::API_URL, [
             'headers' => [
@@ -102,9 +102,18 @@ class GigaChatService implements ComplimentGeneratorInterface
         ]);
     }
 
-    private function buildPrompt(?string $name, string $role): string
+    private function buildPrompt(?string $name, string $role, array $previousCompliments = []): string
     {
         $namePhrase = $name ? " для {$name}" : '';
+        
+        // Формируем контекст с предыдущими сообщениями
+        $historyContext = '';
+        if (!empty($previousCompliments)) {
+            $historyContext = "\n\nПредыдущие сообщения (НЕ повторяй их, придумай что-то новое):\n";
+            foreach ($previousCompliments as $index => $compliment) {
+                $historyContext .= ($index + 1) . ". {$compliment}\n";
+            }
+        }
 
         if ($role === 'sister') {
             return <<<PROMPT
@@ -117,6 +126,7 @@ class GigaChatService implements ComplimentGeneratorInterface
 - Не более 2 предложений
 - Без кавычек и префиксов
 - Просто текст сообщения
+- ВАЖНО: Придумай что-то уникальное, не похожее на предыдущие{$historyContext}
 
 Напиши только сообщение, без дополнительных пояснений.
 PROMPT;
@@ -131,6 +141,7 @@ PROMPT;
 - Не более 2-3 предложений
 - Без кавычек и префиксов типа "Комплимент:"
 - Просто текст комплимента
+- ВАЖНО: Придумай что-то уникальное, не похожее на предыдущие{$historyContext}
 
 Напиши только комплимент, без дополнительных пояснений.
 PROMPT;

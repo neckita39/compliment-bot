@@ -216,7 +216,7 @@ TEXT;
             : [];
 
         try {
-            $compliment = $this->complimentGenerator->generateCompliment($firstName, $role);
+            $compliment = $this->complimentGenerator->generateCompliment($firstName, $role, $previousCompliments);
 
             $emoji = $role === 'sister' ? '✨' : '💝';
             $this->telegramService->sendMessage($chatId, "{$emoji} {$compliment}");

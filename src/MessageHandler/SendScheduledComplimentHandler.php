@@ -59,7 +59,7 @@ class SendScheduledComplimentHandler
                 $firstName = $subscription->getTelegramFirstName();
                 $role = $subscription->getRole();
                 $previousCompliments = $this->complimentHistoryRepository->findRecentTexts($subscription);
-                $compliment = $this->complimentGenerator->generateCompliment($firstName, $role);
+                $compliment = $this->complimentGenerator->generateCompliment($firstName, $role, $previousCompliments);
 
                 $emoji = $role === 'sister' ? '✨' : '💝';
                 $result = $this->telegramService->sendMessage(
