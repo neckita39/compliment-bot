@@ -212,7 +212,7 @@ TEXT;
         $role = $subscription ? $subscription->getRole() : 'wife';
 
         $previousCompliments = $subscription
-            ? $this->complimentHistoryRepository->findRecentTexts($subscription)
+            ? $this->complimentHistoryRepository->findRecentTexts($subscription, $subscription->getHistoryContextSize())
             : [];
 
         try {

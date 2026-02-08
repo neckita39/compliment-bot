@@ -44,6 +44,9 @@ class Subscription
     #[ORM\Column(length: 50)]
     private string $role = 'wife';
 
+    #[ORM\Column(type: Types::INTEGER)]
+    private int $historyContextSize = 1;
+
     public function __construct()
     {
         $this->createdAt = new \DateTime();
@@ -51,6 +54,7 @@ class Subscription
         $this->weekdayTime = new \DateTime('07:00:00');
         $this->weekendTime = new \DateTime('09:00:00');
         $this->role = 'wife';
+        $this->historyContextSize = 1;
     }
 
     public function getId(): ?int
@@ -162,6 +166,18 @@ class Subscription
     public function setRole(string $role): static
     {
         $this->role = $role;
+
+        return $this;
+    }
+
+    public function getHistoryContextSize(): int
+    {
+        return $this->historyContextSize;
+    }
+
+    public function setHistoryContextSize(int $historyContextSize): static
+    {
+        $this->historyContextSize = $historyContextSize;
 
         return $this;
     }

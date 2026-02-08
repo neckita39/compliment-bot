@@ -292,6 +292,10 @@
                                                 <span>🎉 Выходные:</span>
                                                 <input type="time" name="weekend_time" value="{{ sub.weekendTime|date('H:i') }}" required>
                                             </label>
+                                            <label>
+                                                <span>🔄 Контекст (0-50):</span>
+                                                <input type="number" name="history_context_size" value="{{ sub.historyContextSize }}" min="0" max="50" required style="width: 70px;">
+                                            </label>
                                         </div>
                                         <button type="submit" class="btn-small btn-save">💾 Сохранить</button>
                                     </form>

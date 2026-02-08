@@ -134,6 +134,7 @@ class AdminController extends AbstractController
         $weekdayTime = $request->request->get('weekday_time');
         $weekendTime = $request->request->get('weekend_time');
         $role = $request->request->get('role');
+        $historyContextSize = $request->request->get('history_context_size');
 
         try {
             if ($weekdayTime) {
@@ -144,6 +145,9 @@ class AdminController extends AbstractController
             }
             if ($role) {
                 $subscription->setRole($role);
+            }
+            if ($historyContextSize !== null && $historyContextSize !== '') {
+                $subscription->setHistoryContextSize((int) $historyContextSize);
             }
 
             $this->entityManager->flush();
