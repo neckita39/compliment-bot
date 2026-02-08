@@ -15,10 +15,11 @@ services:
     networks:
       - compliment-bot
     healthcheck:
-      test: ["CMD-SHELL", "php-fpm -t || exit 1"]
+      test: ["CMD-SHELL", "test -f /var/www/html/vendor/autoload.php && php-fpm -t"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 30
+      start_period: 60s
 
   nginx:
     image: nginx:alpine

@@ -2,7 +2,9 @@
 
 namespace App\Command;
 
+use App\Entity\ComplimentHistory;
 use App\Entity\Subscription;
+use App\Repository\ComplimentHistoryRepository;
 use App\Repository\SubscriptionRepository;
 use App\Service\DeepSeekService;
 use App\Service\TelegramService;
@@ -24,6 +26,7 @@ class BotPollingCommand extends Command
         private TelegramService $telegramService,
         private DeepSeekService $deepSeekService,
         private SubscriptionRepository $subscriptionRepository,
+        private ComplimentHistoryRepository $complimentHistoryRepository,
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger
     ) {
@@ -203,19 +206,29 @@ TEXT;
         $this->telegramService->answerCallbackQuery($callbackQueryId);
 
         $firstName = $callbackQuery['from']['first_name'] ?? null;
-        
+
         // Get role from subscription or default to 'wife'
         $subscription = $this->subscriptionRepository->findOneByChatId($chatId);
         $role = $subscription ? $subscription->getRole() : 'wife';
-        
-        $compliment = $this->deepSeekService->generateCompliment($firstName, $role);
+
+        $previousCompliments = $subscription
+            ? $this->complimentHistoryRepository->findRecentTexts($subscription)
+            : [];
+
+        $compliment = $this->deepSeekService->generateCompliment($firstName, $role, $previousCompliments);
 
         $emoji = $role === 'sister' ? '✨' : '💝';
         $this->telegramService->sendMessage($chatId, "{$emoji} {$compliment}");
 
-        // Update last compliment timestamp if subscribed
+        // Update last compliment timestamp and save history
         if ($subscription) {
             $subscription->setLastComplimentAt(new \DateTime());
+
+            $history = new ComplimentHistory();
+            $history->setSubscription($subscription);
+            $history->setComplimentText($compliment);
+            $this->entityManager->persist($history);
+
             $this->entityManager->flush();
         }
     }

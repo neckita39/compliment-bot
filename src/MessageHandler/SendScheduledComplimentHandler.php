@@ -2,7 +2,9 @@
 
 namespace App\MessageHandler;
 
+use App\Entity\ComplimentHistory;
 use App\Message\SendScheduledCompliment;
+use App\Repository\ComplimentHistoryRepository;
 use App\Repository\SubscriptionRepository;
 use App\Service\DeepSeekService;
 use App\Service\TelegramService;
@@ -15,6 +17,7 @@ class SendScheduledComplimentHandler
 {
     public function __construct(
         private SubscriptionRepository $subscriptionRepository,
+        private ComplimentHistoryRepository $complimentHistoryRepository,
         private TelegramService $telegramService,
         private DeepSeekService $deepSeekService,
         private EntityManagerInterface $entityManager,
@@ -55,7 +58,8 @@ class SendScheduledComplimentHandler
             try {
                 $firstName = $subscription->getTelegramFirstName();
                 $role = $subscription->getRole();
-                $compliment = $this->deepSeekService->generateCompliment($firstName, $role);
+                $previousCompliments = $this->complimentHistoryRepository->findRecentTexts($subscription);
+                $compliment = $this->deepSeekService->generateCompliment($firstName, $role, $previousCompliments);
 
                 $emoji = $role === 'sister' ? '✨' : '💝';
                 $result = $this->telegramService->sendMessage(
@@ -65,8 +69,14 @@ class SendScheduledComplimentHandler
 
                 if ($result) {
                     $subscription->setLastComplimentAt($now);
+
+                    $history = new ComplimentHistory();
+                    $history->setSubscription($subscription);
+                    $history->setComplimentText($compliment);
+                    $this->entityManager->persist($history);
+
                     $successCount++;
-                    
+
                     $this->logger->info('Compliment sent', [
                         'chat_id' => $subscription->getTelegramChatId(),
                         'name' => $firstName,
