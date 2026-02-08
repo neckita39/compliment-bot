@@ -1,0 +1,116 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}История комплиментов — {{ subscription.telegramFirstName }}{% endblock %}
+
+{% block styles %}
+    .header {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    .header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .header h1 {
+        color: #333;
+        font-size: 28px;
+    }
+    .header .subtitle {
+        color: #999;
+        font-size: 16px;
+        margin-top: 4px;
+    }
+    .back-btn {
+        padding: 10px 20px;
+        background: #f5f5f5;
+        color: #666;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: background 0.3s;
+    }
+    .back-btn:hover {
+        background: #e0e0e0;
+    }
+    .content {
+        background: white;
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+    .compliment-item {
+        padding: 20px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .compliment-item:last-child {
+        border-bottom: none;
+    }
+    .compliment-item:hover {
+        background: #f8f9fa;
+    }
+    .compliment-date {
+        color: #999;
+        font-size: 13px;
+        margin-bottom: 8px;
+    }
+    .compliment-text {
+        color: #333;
+        font-size: 16px;
+        line-height: 1.6;
+    }
+    .counter {
+        color: #999;
+        font-size: 14px;
+        margin-bottom: 20px;
+    }
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #999;
+    }
+    .empty-state .emoji {
+        font-size: 64px;
+        margin-bottom: 20px;
+    }
+    .empty-state p {
+        font-size: 18px;
+    }
+{% endblock %}
+
+{% block body %}
+    <div class="container">
+        <div class="header">
+            <div class="header-top">
+                <div>
+                    <h1>💌 {{ subscription.telegramFirstName }}</h1>
+                    <div class="subtitle">
+                        {% if subscription.telegramUsername %}@{{ subscription.telegramUsername }} · {% endif %}
+                        {{ subscription.role == 'sister' ? '✨ Сестра' : '💝 Жена' }}
+                    </div>
+                </div>
+                <a href="{{ path('admin_dashboard') }}" class="back-btn">← Назад</a>
+            </div>
+        </div>
+
+        <div class="content">
+            {% if history|length > 0 %}
+                <div class="counter">Всего отправлено: {{ history|length }}</div>
+                {% for item in history %}
+                    <div class="compliment-item">
+                        <div class="compliment-date">{{ item.sentAt|date('d.m.Y H:i') }}</div>
+                        <div class="compliment-text">{{ item.complimentText }}</div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="emoji">📭</div>
+                    <p>Комплименты ещё не отправлялись</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Repository\ComplimentHistoryRepository;
 use App\Repository\SubscriptionRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -14,6 +15,7 @@ class AdminController extends AbstractController
     public function __construct(
         private string $adminPassword,
         private SubscriptionRepository $subscriptionRepository,
+        private ComplimentHistoryRepository $complimentHistoryRepository,
         private EntityManagerInterface $entityManager
     ) {
     }
@@ -151,6 +153,31 @@ class AdminController extends AbstractController
         }
 
         return $this->redirectToRoute('admin_dashboard');
+    }
+
+    #[Route('/admin/subscription/{id}/history', name: 'admin_subscription_history')]
+    public function subscriptionHistory(int $id, Request $request): Response
+    {
+        if (!$this->checkAuth($request)) {
+            return $this->redirectToRoute('admin_login');
+        }
+
+        $subscription = $this->subscriptionRepository->find($id);
+
+        if (!$subscription) {
+            $this->addFlash('error', 'Подписка не найдена');
+            return $this->redirectToRoute('admin_dashboard');
+        }
+
+        $history = $this->complimentHistoryRepository->findBy(
+            ['subscription' => $subscription],
+            ['sentAt' => 'DESC']
+        );
+
+        return $this->render('admin/history.html.twig', [
+            'subscription' => $subscription,
+            'history' => $history,
+        ]);
     }
 
     #[Route('/admin/logout', name: 'admin_logout')]

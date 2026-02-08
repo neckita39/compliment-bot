@@ -140,6 +140,15 @@
     .btn-delete:hover {
         background: #c82333;
     }
+    .btn-history {
+        background: #17a2b8;
+        color: white;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .btn-history:hover {
+        background: #138496;
+    }
     .empty-state {
         text-align: center;
         padding: 60px 20px;
@@ -298,6 +307,7 @@
                                     <span class="date">{{ sub.createdAt|date('d.m.Y H:i') }}</span>
                                 </td>
                                 <td>
+                                    <a href="{{ path('admin_subscription_history', {id: sub.id}) }}" class="btn-small btn-history">История</a>
                                     <form method="post" action="{{ path('admin_subscription_toggle', {id: sub.id}) }}" style="display: inline;">
                                         <button type="submit" class="btn-small btn-toggle">
                                             {% if sub.isActive %}Деактивировать{% else %}Активировать{% endif %}
