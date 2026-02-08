@@ -6,7 +6,7 @@ use App\Entity\ComplimentHistory;
 use App\Message\SendScheduledCompliment;
 use App\Repository\ComplimentHistoryRepository;
 use App\Repository\SubscriptionRepository;
-use App\Service\DeepSeekService;
+use App\Service\ComplimentGeneratorInterface;
 use App\Service\TelegramService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -19,7 +19,7 @@ class SendScheduledComplimentHandler
         private SubscriptionRepository $subscriptionRepository,
         private ComplimentHistoryRepository $complimentHistoryRepository,
         private TelegramService $telegramService,
-        private DeepSeekService $deepSeekService,
+        private ComplimentGeneratorInterface $complimentGenerator,
         private EntityManagerInterface $entityManager,
         private LoggerInterface $logger
     ) {
@@ -59,7 +59,7 @@ class SendScheduledComplimentHandler
                 $firstName = $subscription->getTelegramFirstName();
                 $role = $subscription->getRole();
                 $previousCompliments = $this->complimentHistoryRepository->findRecentTexts($subscription);
-                $compliment = $this->deepSeekService->generateCompliment($firstName, $role, $previousCompliments);
+                $compliment = $this->complimentGenerator->generateCompliment($firstName, $role);
 
                 $emoji = $role === 'sister' ? '✨' : '💝';
                 $result = $this->telegramService->sendMessage(

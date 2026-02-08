@@ -5,7 +5,7 @@ namespace App\Service;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-class DeepSeekService
+class DeepSeekService implements ComplimentGeneratorInterface
 {
     private const API_URL = 'https://api.deepseek.com/v1/chat/completions';
     private const MODEL = 'deepseek-chat';

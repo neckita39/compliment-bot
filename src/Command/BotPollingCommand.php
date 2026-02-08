@@ -6,7 +6,7 @@ use App\Entity\ComplimentHistory;
 use App\Entity\Subscription;
 use App\Repository\ComplimentHistoryRepository;
 use App\Repository\SubscriptionRepository;
-use App\Service\DeepSeekService;
+use App\Service\ComplimentGeneratorInterface;
 use App\Service\TelegramService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -24,7 +24,7 @@ class BotPollingCommand extends Command
 {
     public function __construct(
         private TelegramService $telegramService,
-        private DeepSeekService $deepSeekService,
+        private ComplimentGeneratorInterface $complimentGenerator,
         private SubscriptionRepository $subscriptionRepository,
         private ComplimentHistoryRepository $complimentHistoryRepository,
         private EntityManagerInterface $entityManager,
@@ -216,7 +216,7 @@ TEXT;
             : [];
 
         try {
-            $compliment = $this->deepSeekService->generateCompliment($firstName, $role, $previousCompliments);
+            $compliment = $this->complimentGenerator->generateCompliment($firstName, $role);
 
             $emoji = $role === 'sister' ? '✨' : '💝';
             $this->telegramService->sendMessage($chatId, "{$emoji} {$compliment}");

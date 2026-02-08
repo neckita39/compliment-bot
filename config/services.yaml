@@ -6,6 +6,8 @@
 parameters:
     telegram_bot_token: '%env(TELEGRAM_BOT_TOKEN)%'
     deepseek_api_key: '%env(DEEPSEEK_API_KEY)%'
+    gigachat_client_id: '%env(GIGACHAT_CLIENT_ID)%'
+    gigachat_client_secret: '%env(GIGACHAT_CLIENT_SECRET)%'
     admin_password: '%env(ADMIN_PASSWORD)%'
 
 services:
@@ -33,6 +35,14 @@ services:
     App\Service\DeepSeekService:
         arguments:
             $apiKey: '%deepseek_api_key%'
+
+    App\Service\GigaChatService:
+        arguments:
+            $clientId: '%gigachat_client_id%'
+            $clientSecret: '%gigachat_client_secret%'
+
+    # Alias for the AI service (switch between DeepSeek and GigaChat)
+    App\Service\ComplimentGeneratorInterface: '@App\Service\GigaChatService'
 
     App\Controller\AdminController:
         arguments:
