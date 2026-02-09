@@ -42,7 +42,7 @@ class Subscription
     private ?\DateTimeInterface $weekendTime = null;
 
     #[ORM\Column(length: 50)]
-    private string $role = 'wife';
+    private string $role = 'neutral';
 
     #[ORM\Column(type: Types::INTEGER)]
     private int $historyContextSize = 1;
@@ -53,7 +53,7 @@ class Subscription
         // Default times: 7:00 for weekdays, 9:00 for weekends
         $this->weekdayTime = new \DateTime('07:00:00');
         $this->weekendTime = new \DateTime('09:00:00');
-        $this->role = 'wife';
+        $this->role = 'neutral';
         $this->historyContextSize = 1;
     }
 

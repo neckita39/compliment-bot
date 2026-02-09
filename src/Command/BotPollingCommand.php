@@ -216,7 +216,7 @@ TEXT;
 
         // Get role from subscription or default to 'wife'
         $subscription = $this->subscriptionRepository->findOneByChatId($chatId);
-        $role = $subscription ? $subscription->getRole() : 'wife';
+        $role = $subscription ? $subscription->getRole() : 'neutral';
 
         $previousCompliments = $subscription
             ? $this->complimentHistoryRepository->findRecentTexts($subscription, $subscription->getHistoryContextSize())
