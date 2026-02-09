@@ -3,6 +3,7 @@
 namespace App\MessageHandler;
 
 use App\Entity\ComplimentHistory;
+use App\Enum\Role;
 use App\Message\SendScheduledCompliment;
 use App\Repository\ComplimentHistoryRepository;
 use App\Repository\SubscriptionRepository;
@@ -61,7 +62,7 @@ class SendScheduledComplimentHandler
                 $previousCompliments = $this->complimentHistoryRepository->findRecentTexts($subscription, $subscription->getHistoryContextSize());
                 $compliment = $this->complimentGenerator->generateCompliment($firstName, $role, $previousCompliments);
 
-                $emoji = $role === 'sister' ? '✨' : '💝';
+                $emoji = Role::from($role)->emoji();
                 $result = $this->telegramService->sendMessage(
                     $subscription->getTelegramChatId(),
                     "{$emoji} {$compliment}"

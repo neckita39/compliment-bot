@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Enum\Role;
 use App\Repository\ComplimentHistoryRepository;
 use App\Repository\SubscriptionRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -69,6 +70,7 @@ class AdminController extends AbstractController
         return $this->render('admin/dashboard.html.twig', [
             'subscriptions' => $subscriptions,
             'stats' => $stats,
+            'roles' => Role::cases(),
         ]);
     }
 
@@ -143,7 +145,7 @@ class AdminController extends AbstractController
             if ($weekendTime) {
                 $subscription->setWeekendTime(new \DateTime($weekendTime));
             }
-            if ($role) {
+            if ($role && Role::tryFrom($role) !== null) {
                 $subscription->setRole($role);
             }
             if ($historyContextSize !== null && $historyContextSize !== '') {

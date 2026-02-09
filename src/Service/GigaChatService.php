@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Enum\Role;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -37,7 +38,7 @@ class GigaChatService implements ComplimentGeneratorInterface
 
         $this->ensureValidToken();
 
-        $prompt = $this->buildPrompt($name, $role, $previousCompliments);
+        $prompt = Role::from($role)->buildPrompt($name, $previousCompliments);
 
         try {
             $response = $this->httpClient->request('POST', self::API_URL, [
@@ -140,51 +141,6 @@ class GigaChatService implements ComplimentGeneratorInterface
         $this->logger->info('GigaChat: token refreshed successfully', [
             'expires_at' => date('Y-m-d H:i:s', $this->tokenExpiresAt),
         ]);
-    }
-
-    private function buildPrompt(?string $name, string $role, array $previousCompliments = []): string
-    {
-        $namePhrase = $name ? " для {$name}" : '';
-        
-        // Формируем контекст с предыдущими сообщениями
-        $historyContext = '';
-        if (!empty($previousCompliments)) {
-            $historyContext = "\n\nПредыдущие сообщения (НЕ повторяй их, придумай что-то новое):\n";
-            foreach ($previousCompliments as $index => $compliment) {
-                $historyContext .= ($index + 1) . ". {$compliment}\n";
-            }
-        }
-
-        if ($role === 'sister') {
-            return <<<PROMPT
-Напиши одно тёплое подбадривающее сообщение{$namePhrase} — для 10-летней девочки-школьницы на русском языке.
-
-Требования:
-- Дружеское и позитивное настроение
-- Мотивация, поддержка в учёбе или добрые слова
-- Можно использовать 1-2 эмодзи (но не обязательно)
-- Не более 2 предложений
-- Без кавычек и префиксов
-- Просто текст сообщения
-- ВАЖНО: Придумай что-то уникальное, не похожее на предыдущие{$historyContext}
-
-Напиши только сообщение, без дополнительных пояснений.
-PROMPT;
-        }
-
-        // Default: wife role
-        return <<<PROMPT
-Напиши один красивый, искренний и романтичный комплимент{$namePhrase} на русском языке.
-
-Требования:
-- Комплимент должен быть тёплым и нежным
-- Не более 2-3 предложений
-- Без кавычек и префиксов типа "Комплимент:"
-- Просто текст комплимента
-- ВАЖНО: Придумай что-то уникальное, не похожее на предыдущие{$historyContext}
-
-Напиши только комплимент, без дополнительных пояснений.
-PROMPT;
     }
 
     private function generateUUID(): string

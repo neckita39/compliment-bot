@@ -4,6 +4,7 @@ namespace App\Command;
 
 use App\Entity\ComplimentHistory;
 use App\Entity\Subscription;
+use App\Enum\Role;
 use App\Repository\ComplimentHistoryRepository;
 use App\Repository\SubscriptionRepository;
 use App\Service\ComplimentGeneratorInterface;
@@ -218,7 +219,7 @@ TEXT;
         try {
             $compliment = $this->complimentGenerator->generateCompliment($firstName, $role, $previousCompliments);
 
-            $emoji = $role === 'sister' ? '✨' : '💝';
+            $emoji = Role::from($role)->emoji();
             $this->telegramService->sendMessage($chatId, "{$emoji} {$compliment}");
 
             // Update last compliment timestamp and save history

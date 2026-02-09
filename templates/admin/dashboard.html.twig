@@ -280,8 +280,9 @@
                                 <td>
                                     <form method="post" action="{{ path('admin_subscription_update_times', {id: sub.id}) }}" class="time-form">
                                         <select name="role" style="padding: 5px; border: 1px solid #ddd; border-radius: 4px; width: 100%;">
-                                            <option value="wife" {% if sub.role == 'wife' %}selected{% endif %}>💝 Жена</option>
-                                            <option value="sister" {% if sub.role == 'sister' %}selected{% endif %}>✨ Сестра</option>
+                                            {% for role in roles %}
+                                                <option value="{{ role.value }}" {% if sub.role == role.value %}selected{% endif %}>{{ role.label }}</option>
+                                            {% endfor %}
                                         </select>
                                         <div class="time-inputs" style="margin-top: 10px;">
                                             <label>
