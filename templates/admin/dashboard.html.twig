@@ -297,6 +297,10 @@
                                                 <span>🔄 Контекст (0-50):</span>
                                                 <input type="number" name="history_context_size" value="{{ sub.historyContextSize }}" min="0" max="50" required style="width: 70px;">
                                             </label>
+                                            <label>
+                                                <input type="checkbox" name="weekend_enabled" {% if sub.weekendEnabled %}checked{% endif %}>
+                                                <span>📅 Выходные</span>
+                                            </label>
                                         </div>
                                         <button type="submit" class="btn-small btn-save">💾 Сохранить</button>
                                     </form>

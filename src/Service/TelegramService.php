@@ -100,8 +100,12 @@ class TelegramService
         }
     }
 
-    public function getMainMenuKeyboard(): array
+    public function getMainMenuKeyboard(?bool $weekendEnabled = null): array
     {
+        $weekendLabel = $weekendEnabled === false
+            ? '📅 Выходные: ВЫКЛ'
+            : '📅 Выходные: ВКЛ';
+
         return [
             'inline_keyboard' => [
                 [
@@ -113,6 +117,9 @@ class TelegramService
                 ],
                 [
                     ['text' => '🎭 Выбрать роль', 'callback_data' => 'choose_role'],
+                ],
+                [
+                    ['text' => $weekendLabel, 'callback_data' => 'toggle_weekend'],
                 ],
             ],
         ];

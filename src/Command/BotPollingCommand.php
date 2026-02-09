@@ -118,6 +118,7 @@ class BotPollingCommand extends Command
             'unsubscribe' => $this->handleUnsubscribe($chatId, $callbackQueryId),
             'compliment' => $this->handleComplimentNow($chatId, $callbackQuery, $callbackQueryId),
             'choose_role' => $this->handleChooseRole($chatId, $callbackQueryId),
+            'toggle_weekend' => $this->handleToggleWeekend($chatId, $callbackQueryId),
             default => null,
         };
     }
@@ -136,10 +137,13 @@ class BotPollingCommand extends Command
 Используй кнопки ниже для управления подпиской.
 TEXT;
 
+        $subscription = $this->subscriptionRepository->findOneByChatId($chatId);
+        $weekendEnabled = $subscription?->isWeekendEnabled();
+
         $this->telegramService->sendMessage(
             $chatId,
             $welcomeText,
-            $this->telegramService->getMainMenuKeyboard()
+            $this->telegramService->getMainMenuKeyboard($weekendEnabled)
         );
     }
 
@@ -268,6 +272,35 @@ TEXT;
             $chatId,
             "🎭 Выбери роль для сообщений:",
             $this->telegramService->getRoleKeyboard($currentRole)
+        );
+    }
+
+    private function handleToggleWeekend(string $chatId, string $callbackQueryId): void
+    {
+        $subscription = $this->subscriptionRepository->findOneByChatId($chatId);
+
+        if (!$subscription) {
+            $this->telegramService->answerCallbackQuery(
+                $callbackQueryId,
+                'Сначала подпишись! 💝'
+            );
+            return;
+        }
+
+        $subscription->setWeekendEnabled(!$subscription->isWeekendEnabled());
+        $this->entityManager->flush();
+
+        $status = $subscription->isWeekendEnabled() ? 'включены' : 'отключены';
+        $this->telegramService->answerCallbackQuery(
+            $callbackQueryId,
+            "Выходные {$status}!"
+        );
+
+        $statusEmoji = $subscription->isWeekendEnabled() ? '✅' : '❌';
+        $this->telegramService->sendMessage(
+            $chatId,
+            "{$statusEmoji} Комплименты по выходным {$status}.",
+            $this->telegramService->getMainMenuKeyboard($subscription->isWeekendEnabled())
         );
     }
 

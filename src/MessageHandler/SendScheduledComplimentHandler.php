@@ -43,8 +43,13 @@ class SendScheduledComplimentHandler
         $errorCount = 0;
 
         foreach ($activeSubscriptions as $subscription) {
+            // Skip weekend sends for users who disabled weekends
+            if ($isWeekend && !$subscription->isWeekendEnabled()) {
+                continue;
+            }
+
             // Determine which time to use based on day of week
-            $targetTime = $isWeekend 
+            $targetTime = $isWeekend
                 ? $subscription->getWeekendTime()
                 : $subscription->getWeekdayTime();
 

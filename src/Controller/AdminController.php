@@ -152,6 +152,8 @@ class AdminController extends AbstractController
                 $subscription->setHistoryContextSize((int) $historyContextSize);
             }
 
+            $subscription->setWeekendEnabled($request->request->has('weekend_enabled'));
+
             $this->entityManager->flush();
             $this->addFlash('success', 'Настройки обновлены');
         } catch (\Exception $e) {
