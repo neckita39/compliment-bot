@@ -29,37 +29,68 @@ class GigaChatService implements ComplimentGeneratorInterface
         }
 
         // Get or refresh access token
+        $this->logger->info('GigaChat: generating compliment', [
+            'name' => $name,
+            'role' => $role,
+            'previousCount' => count($previousCompliments),
+        ]);
+
         $this->ensureValidToken();
 
         $prompt = $this->buildPrompt($name, $role, $previousCompliments);
 
-        $response = $this->httpClient->request('POST', self::API_URL, [
-            'headers' => [
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-                'Authorization' => 'Bearer ' . $this->accessToken,
-            ],
-            'json' => [
-                'model' => self::MODEL,
-                'messages' => [
-                    [
-                        'role' => 'user',
-                        'content' => $prompt,
-                    ],
+        try {
+            $response = $this->httpClient->request('POST', self::API_URL, [
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                    'Authorization' => 'Bearer ' . $this->accessToken,
                 ],
-                'temperature' => 0.8,
-                'max_tokens' => 200,
-            ],
-            'verify_peer' => false, // GigaChat uses self-signed cert
-        ]);
+                'json' => [
+                    'model' => self::MODEL,
+                    'messages' => [
+                        [
+                            'role' => 'user',
+                            'content' => $prompt,
+                        ],
+                    ],
+                    'temperature' => 0.8,
+                    'max_tokens' => 200,
+                ],
+                'verify_peer' => false, // GigaChat uses self-signed cert
+            ]);
 
-        $data = $response->toArray();
+            $statusCode = $response->getStatusCode();
+            $this->logger->info('GigaChat: response received', ['statusCode' => $statusCode]);
 
-        if (isset($data['choices'][0]['message']['content'])) {
-            return trim($data['choices'][0]['message']['content']);
+            $data = $response->toArray();
+
+            if (isset($data['choices'][0]['message']['content'])) {
+                $compliment = trim($data['choices'][0]['message']['content']);
+                $this->logger->info('GigaChat: compliment generated successfully');
+                return $compliment;
+            }
+
+            $this->logger->error('GigaChat: unexpected response format', ['response' => $data]);
+            throw new \RuntimeException('GigaChat API вернул неожиданный ответ: ' . json_encode($data));
+        } catch (\Symfony\Component\HttpClient\Exception\ClientException $e) {
+            $responseBody = $e->getResponse()->getContent(false);
+            $this->logger->error('GigaChat: client error', [
+                'statusCode' => $e->getResponse()->getStatusCode(),
+                'body' => $responseBody,
+            ]);
+            throw new \RuntimeException('GigaChat API ошибка (' . $e->getResponse()->getStatusCode() . '): ' . $responseBody);
+        } catch (\Symfony\Component\HttpClient\Exception\ServerException $e) {
+            $responseBody = $e->getResponse()->getContent(false);
+            $this->logger->error('GigaChat: server error', [
+                'statusCode' => $e->getResponse()->getStatusCode(),
+                'body' => $responseBody,
+            ]);
+            throw new \RuntimeException('GigaChat API серверная ошибка (' . $e->getResponse()->getStatusCode() . '): ' . $responseBody);
+        } catch (\Symfony\Component\HttpClient\Exception\TransportException $e) {
+            $this->logger->error('GigaChat: transport error', ['error' => $e->getMessage()]);
+            throw new \RuntimeException('GigaChat API ошибка соединения: ' . $e->getMessage());
         }
-
-        throw new \RuntimeException('❌ GigaChat API вернул неожиданный ответ (нет content в ответе)');
     }
 
     private function ensureValidToken(): void
@@ -75,30 +106,39 @@ class GigaChatService implements ComplimentGeneratorInterface
 
     private function refreshToken(): void
     {
+        $this->logger->info('GigaChat: requesting OAuth token');
+
         $authString = base64_encode("{$this->clientId}:{$this->clientSecret}");
 
-        $response = $this->httpClient->request('POST', self::OAUTH_URL, [
-            'headers' => [
-                'Content-Type' => 'application/x-www-form-urlencoded',
-                'Accept' => 'application/json',
-                'RqUID' => $this->generateUUID(),
-                'Authorization' => 'Basic ' . $authString,
-            ],
-            'body' => 'scope=GIGACHAT_API_PERS',
-            'verify_peer' => false, // Sberbank uses self-signed cert
-        ]);
+        try {
+            $response = $this->httpClient->request('POST', self::OAUTH_URL, [
+                'headers' => [
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                    'Accept' => 'application/json',
+                    'RqUID' => $this->generateUUID(),
+                    'Authorization' => 'Basic ' . $authString,
+                ],
+                'body' => 'scope=GIGACHAT_API_PERS',
+                'verify_peer' => false, // Sberbank uses self-signed cert
+            ]);
 
-        $data = $response->toArray();
+            $data = $response->toArray();
+        } catch (\Exception $e) {
+            $this->logger->error('GigaChat: OAuth token request failed', ['error' => $e->getMessage()]);
+            throw new \RuntimeException('Не удалось получить токен GigaChat: ' . $e->getMessage());
+        }
 
         if (!isset($data['access_token'])) {
-            throw new \RuntimeException('❌ Не удалось получить токен GigaChat: ' . json_encode($data));
+            $this->logger->error('GigaChat: no access_token in OAuth response', ['response' => $data]);
+            throw new \RuntimeException('Не удалось получить токен GigaChat: ' . json_encode($data));
         }
 
         $this->accessToken = $data['access_token'];
-        $this->tokenExpiresAt = time() + ($data['expires_at'] ?? 1800); // Default 30 min
+        // expires_at from GigaChat is a Unix timestamp in milliseconds
+        $this->tokenExpiresAt = isset($data['expires_at']) ? (int)($data['expires_at'] / 1000) : time() + 1800;
 
-        $this->logger->info('GigaChat token refreshed', [
-            'expires_in' => $data['expires_at'] ?? 1800,
+        $this->logger->info('GigaChat: token refreshed successfully', [
+            'expires_at' => date('Y-m-d H:i:s', $this->tokenExpiresAt),
         ]);
     }
 

@@ -88,15 +88,15 @@ class SendScheduledComplimentHandler
                     ]);
                 }
             } catch (\Symfony\Component\HttpClient\Exception\ClientException $e) {
-                // DeepSeek API error - send error message to user
+                // AI API error - send error message to user
                 try {
                     $response = $e->getResponse();
                     $data = $response->toArray(false);
-                    $errorMsg = $data['error']['message'] ?? 'Unknown error';
-                    
+                    $errorMsg = $data['error']['message'] ?? $data['message'] ?? json_encode($data);
+
                     $this->telegramService->sendMessage(
                         $subscription->getTelegramChatId(),
-                        "❌ Не удалось сгенерировать сообщение:\n\n{$errorMsg}\n\nПроверьте баланс на platform.deepseek.com"
+                        "❌ Не удалось сгенерировать сообщение:\n\n{$errorMsg}"
                     );
                 } catch (\Exception $ex) {
                     $this->telegramService->sendMessage(
@@ -104,9 +104,9 @@ class SendScheduledComplimentHandler
                         "❌ Ошибка API: " . $e->getMessage()
                     );
                 }
-                
+
                 $errorCount++;
-                $this->logger->error('DeepSeek API error', [
+                $this->logger->error('AI API error', [
                     'chat_id' => $subscription->getTelegramChatId(),
                     'error' => $e->getMessage(),
                 ]);

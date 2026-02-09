@@ -237,10 +237,10 @@ TEXT;
             try {
                 $response = $e->getResponse();
                 $data = $response->toArray(false);
-                $errorMsg = $data['error']['message'] ?? 'Unknown error';
+                $errorMsg = $data['error']['message'] ?? $data['message'] ?? json_encode($data);
                 $this->telegramService->sendMessage(
-                    $chatId, 
-                    "❌ Ошибка DeepSeek API:\n\n{$errorMsg}\n\nПроверьте баланс на platform.deepseek.com"
+                    $chatId,
+                    "❌ Ошибка AI API:\n\n{$errorMsg}"
                 );
             } catch (\Exception $ex) {
                 $this->telegramService->sendMessage($chatId, "❌ Ошибка API: " . $e->getMessage());
