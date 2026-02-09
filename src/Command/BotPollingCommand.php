@@ -108,10 +108,16 @@ class BotPollingCommand extends Command
             $data
         ));
 
+        if (str_starts_with($data, 'role_')) {
+            $this->handleRoleSelect($chatId, substr($data, 5), $callbackQueryId);
+            return;
+        }
+
         match ($data) {
             'subscribe' => $this->handleSubscribe($chatId, $callbackQuery, $callbackQueryId),
             'unsubscribe' => $this->handleUnsubscribe($chatId, $callbackQueryId),
             'compliment' => $this->handleComplimentNow($chatId, $callbackQuery, $callbackQueryId),
+            'choose_role' => $this->handleChooseRole($chatId, $callbackQueryId),
             default => null,
         };
     }
@@ -249,5 +255,50 @@ TEXT;
         } catch (\Exception $e) {
             $this->telegramService->sendMessage($chatId, "❌ Ошибка: " . $e->getMessage());
         }
+    }
+
+    private function handleChooseRole(string $chatId, string $callbackQueryId): void
+    {
+        $this->telegramService->answerCallbackQuery($callbackQueryId);
+
+        $subscription = $this->subscriptionRepository->findOneByChatId($chatId);
+        $currentRole = $subscription?->getRole();
+
+        $this->telegramService->sendMessage(
+            $chatId,
+            "🎭 Выбери роль для сообщений:",
+            $this->telegramService->getRoleKeyboard($currentRole)
+        );
+    }
+
+    private function handleRoleSelect(string $chatId, string $roleValue, string $callbackQueryId): void
+    {
+        $role = Role::tryFrom($roleValue);
+        if (!$role) {
+            $this->telegramService->answerCallbackQuery($callbackQueryId, 'Неизвестная роль');
+            return;
+        }
+
+        $subscription = $this->subscriptionRepository->findOneByChatId($chatId);
+        if (!$subscription) {
+            $this->telegramService->answerCallbackQuery(
+                $callbackQueryId,
+                'Сначала подпишись! 💝'
+            );
+            return;
+        }
+
+        $subscription->setRole($role->value);
+        $this->entityManager->flush();
+
+        $this->telegramService->answerCallbackQuery(
+            $callbackQueryId,
+            "Роль изменена: {$role->label()}"
+        );
+
+        $this->telegramService->sendMessage(
+            $chatId,
+            "✅ Роль изменена на {$role->label()}\n\nТеперь сообщения будут в этом стиле!"
+        );
     }
 }

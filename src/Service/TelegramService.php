@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Enum\Role;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -110,8 +111,25 @@ class TelegramService
                 [
                     ['text' => '💌 Получить комплимент', 'callback_data' => 'compliment'],
                 ],
+                [
+                    ['text' => '🎭 Выбрать роль', 'callback_data' => 'choose_role'],
+                ],
             ],
         ];
+    }
+
+    public function getRoleKeyboard(?string $currentRole = null): array
+    {
+        $buttons = [];
+        foreach (Role::cases() as $role) {
+            $label = $role->label();
+            if ($currentRole === $role->value) {
+                $label = '✓ ' . $label;
+            }
+            $buttons[] = [['text' => $label, 'callback_data' => 'role_' . $role->value]];
+        }
+
+        return ['inline_keyboard' => $buttons];
     }
 
     private function getApiUrl(string $method): string
