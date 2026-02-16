@@ -2,9 +2,12 @@
 
 namespace App\Controller;
 
+use App\Entity\ComplimentHistory;
 use App\Enum\Role;
 use App\Repository\ComplimentHistoryRepository;
 use App\Repository\SubscriptionRepository;
+use App\Service\ComplimentGeneratorInterface;
+use App\Service\TelegramService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,7 +20,9 @@ class AdminController extends AbstractController
         private string $adminPassword,
         private SubscriptionRepository $subscriptionRepository,
         private ComplimentHistoryRepository $complimentHistoryRepository,
-        private EntityManagerInterface $entityManager
+        private EntityManagerInterface $entityManager,
+        private ComplimentGeneratorInterface $complimentGenerator,
+        private TelegramService $telegramService
     ) {
     }
 
@@ -186,6 +191,58 @@ class AdminController extends AbstractController
             'subscription' => $subscription,
             'history' => $history,
         ]);
+    }
+
+    #[Route('/admin/subscription/{id}/send-compliment', name: 'admin_subscription_send_compliment', methods: ['POST'])]
+    public function sendCompliment(int $id, Request $request): Response
+    {
+        if (!$this->checkAuth($request)) {
+            return $this->redirectToRoute('admin_login');
+        }
+
+        $subscription = $this->subscriptionRepository->find($id);
+
+        if (!$subscription) {
+            $this->addFlash('error', 'Подписка не найдена');
+            return $this->redirectToRoute('admin_dashboard');
+        }
+
+        $role = $subscription->getRole() ?? 'neutral';
+        $firstName = $subscription->getTelegramFirstName();
+        $previousCompliments = $this->complimentHistoryRepository->findRecentTexts(
+            $subscription,
+            $subscription->getHistoryContextSize()
+        );
+
+        try {
+            $compliment = $this->complimentGenerator->generateCompliment($firstName, $role, $previousCompliments);
+
+            $emoji = Role::from($role)->emoji();
+            $sent = $this->telegramService->sendMessage(
+                $subscription->getTelegramChatId(),
+                "{$emoji} {$compliment}"
+            );
+
+            if (!$sent) {
+                $this->addFlash('error', 'Не удалось отправить сообщение в Telegram');
+                return $this->redirectToRoute('admin_dashboard');
+            }
+
+            $subscription->setLastComplimentAt(new \DateTime());
+
+            $history = new ComplimentHistory();
+            $history->setSubscription($subscription);
+            $history->setComplimentText($compliment);
+            $this->entityManager->persist($history);
+
+            $this->entityManager->flush();
+
+            $this->addFlash('success', "Комплимент отправлен для {$firstName}!");
+        } catch (\Exception $e) {
+            $this->addFlash('error', 'Ошибка: ' . $e->getMessage());
+        }
+
+        return $this->redirectToRoute('admin_dashboard');
     }
 
     #[Route('/admin/logout', name: 'admin_logout')]

@@ -149,6 +149,13 @@
     .btn-history:hover {
         background: #138496;
     }
+    .btn-compliment {
+        background: #e83e8c;
+        color: white;
+    }
+    .btn-compliment:hover {
+        background: #d63384;
+    }
     .empty-state {
         text-align: center;
         padding: 60px 20px;
@@ -316,6 +323,9 @@
                                     <span class="date">{{ sub.createdAt|date('d.m.Y H:i') }}</span>
                                 </td>
                                 <td>
+                                    <form method="post" action="{{ path('admin_subscription_send_compliment', {id: sub.id}) }}" style="display: inline;">
+                                        <button type="submit" class="btn-small btn-compliment">💌 Отправить</button>
+                                    </form>
                                     <a href="{{ path('admin_subscription_history', {id: sub.id}) }}" class="btn-small btn-history">История</a>
                                     <form method="post" action="{{ path('admin_subscription_toggle', {id: sub.id}) }}" style="display: inline;">
                                         <button type="submit" class="btn-small btn-toggle">
