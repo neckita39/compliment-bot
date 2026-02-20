@@ -13,6 +13,8 @@ parameters:
     bitrix24_portal_url: '%env(BITRIX24_PORTAL_URL)%'
     bitrix24_webhook_user_id: '%env(BITRIX24_WEBHOOK_USER_ID)%'
     bitrix24_webhook_token: '%env(BITRIX24_WEBHOOK_TOKEN)%'
+    bitrix24_bot_id: '%env(BITRIX24_BOT_ID)%'
+    bitrix24_bot_client_id: '%env(BITRIX24_BOT_CLIENT_ID)%'
 
 services:
     # default configuration for services in *this* file
@@ -57,6 +59,8 @@ services:
             $portalUrl: '%bitrix24_portal_url%'
             $webhookUserId: '%bitrix24_webhook_user_id%'
             $webhookToken: '%bitrix24_webhook_token%'
+            $botId: '%bitrix24_bot_id%'
+            $botClientId: '%bitrix24_bot_client_id%'
 
     App\Controller\AdminController:
         arguments:

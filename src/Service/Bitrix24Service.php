@@ -14,7 +14,9 @@ class Bitrix24Service
         private LoggerInterface $logger,
         private string $portalUrl,
         private string $webhookUserId,
-        private string $webhookToken
+        private string $webhookToken,
+        private string $botId,
+        private string $botClientId
     ) {
     }
 
@@ -32,13 +34,26 @@ class Bitrix24Service
     {
         $message .= "\n[size=10][i]Отправлено автоматически, но чувства настоящие[/i][/size]";
 
+        $useBotApi = !empty($this->botId) && !empty($this->botClientId);
+
         try {
-            $response = $this->httpClient->request('POST', $this->buildUrl('im.message.add'), [
-                'json' => [
-                    'DIALOG_ID' => (string) $userId,
-                    'MESSAGE' => $message,
-                ],
-            ]);
+            if ($useBotApi) {
+                $url = $this->buildUrl('imbot.message.add') . '?CLIENT_ID=' . urlencode($this->botClientId);
+                $response = $this->httpClient->request('POST', $url, [
+                    'body' => [
+                        'BOT_ID' => $this->botId,
+                        'DIALOG_ID' => (string) $userId,
+                        'MESSAGE' => $message,
+                    ],
+                ]);
+            } else {
+                $response = $this->httpClient->request('POST', $this->buildUrl('im.message.add'), [
+                    'body' => [
+                        'DIALOG_ID' => (string) $userId,
+                        'MESSAGE' => $message,
+                    ],
+                ]);
+            }
 
             $data = $response->toArray();
 
@@ -47,6 +62,7 @@ class Bitrix24Service
                     'error' => $data['error'],
                     'error_description' => $data['error_description'] ?? '',
                     'user_id' => $userId,
+                    'bot_mode' => $useBotApi,
                 ]);
                 return false;
             }
@@ -65,7 +81,7 @@ class Bitrix24Service
     {
         try {
             $response = $this->httpClient->request('POST', $this->buildUrl('im.user.get'), [
-                'json' => [
+                'body' => [
                     'ID' => $userId,
                 ],
             ]);
