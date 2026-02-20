@@ -231,6 +231,8 @@ class TelegramService
             $buttons[] = $nav;
         }
 
+        $buttons[] = [['text' => '◀️ Главное меню', 'callback_data' => 'admin_home']];
+
         return ['inline_keyboard' => $buttons];
     }
 
@@ -250,30 +252,6 @@ class TelegramService
         ];
     }
 
-    public function getAdminTimeKeyboard(int $id, string $type, ?string $currentTime = null): array
-    {
-        $presets = ['07:00', '08:00', '09:00', '10:00', '10:25', '11:00', '12:00', '14:00', '18:00'];
-        $prefix = $type === 'weekday' ? 'admin_swdt' : 'admin_swet';
-
-        $rows = [];
-        $row = [];
-        foreach ($presets as $i => $time) {
-            $label = ($currentTime === $time) ? "✓ {$time}" : $time;
-            $row[] = ['text' => $label, 'callback_data' => "{$prefix}_{$id}_{$time}"];
-            if (count($row) === 3) {
-                $rows[] = $row;
-                $row = [];
-            }
-        }
-        if (!empty($row)) {
-            $rows[] = $row;
-        }
-
-        $rows[] = [['text' => '◀️ Назад', 'callback_data' => 'admin_sub_' . $id]];
-
-        return ['inline_keyboard' => $rows];
-    }
-
     public function getAdminHistoryKeyboard(int $id, int $offset, bool $hasMore): array
     {
         $nav = [];
@@ -281,6 +259,78 @@ class TelegramService
             $nav[] = ['text' => '📜 Ещё', 'callback_data' => "admin_hist_{$id}_{$offset}"];
         }
         $nav[] = ['text' => '◀️ Назад', 'callback_data' => 'admin_sub_' . $id];
+
+        return ['inline_keyboard' => [$nav]];
+    }
+
+    public function getAdminHomeKeyboard(int $tgCount, int $b24Count): array
+    {
+        return [
+            'inline_keyboard' => [
+                [['text' => "📱 Telegram ({$tgCount})", 'callback_data' => 'admin_list']],
+                [['text' => "💼 Битрикс24 ({$b24Count})", 'callback_data' => 'b24_list']],
+                [['text' => '➕ Добавить Б24 подписчика', 'callback_data' => 'b24_add']],
+            ],
+        ];
+    }
+
+    /**
+     * @param \App\Entity\Bitrix24Subscription[] $subscriptions
+     */
+    public function getB24ListKeyboard(array $subscriptions, int $page = 0, int $perPage = 5): array
+    {
+        $total = count($subscriptions);
+        $pages = (int) ceil($total / $perPage);
+        $offset = $page * $perPage;
+        $slice = array_slice($subscriptions, $offset, $perPage);
+
+        $buttons = [];
+        foreach ($slice as $sub) {
+            $status = $sub->isActive() ? '✅' : '❌';
+            $name = $sub->getBitrix24UserName() ?: 'ID ' . $sub->getBitrix24UserId();
+            $buttons[] = [['text' => "{$status} {$name} ({$sub->getBitrix24UserId()})", 'callback_data' => 'b24_sub_' . $sub->getId()]];
+        }
+
+        if ($pages > 1) {
+            $nav = [];
+            if ($page > 0) {
+                $nav[] = ['text' => '<< Назад', 'callback_data' => 'b24_page_' . ($page - 1)];
+            }
+            if ($page < $pages - 1) {
+                $nav[] = ['text' => 'Вперёд >>', 'callback_data' => 'b24_page_' . ($page + 1)];
+            }
+            $buttons[] = $nav;
+        }
+
+        $buttons[] = [['text' => '◀️ Главное меню', 'callback_data' => 'admin_home']];
+
+        return ['inline_keyboard' => $buttons];
+    }
+
+    public function getB24SubscriberKeyboard(int $id, bool $isActive): array
+    {
+        $toggleText = $isActive ? '⏸ Деактивировать' : '▶️ Активировать';
+
+        return [
+            'inline_keyboard' => [
+                [['text' => $toggleText, 'callback_data' => 'b24_toggle_' . $id]],
+                [['text' => '⏰ Время (будни)', 'callback_data' => 'b24_chwdt_' . $id]],
+                [['text' => '⏰ Время (выходные)', 'callback_data' => 'b24_chwet_' . $id]],
+                [['text' => '📜 История', 'callback_data' => 'b24_hist_' . $id]],
+                [['text' => '💌 Отправить комплимент', 'callback_data' => 'b24_send_' . $id]],
+                [['text' => '🗑 Удалить', 'callback_data' => 'b24_delete_' . $id]],
+                [['text' => '◀️ Назад к списку', 'callback_data' => 'b24_list']],
+            ],
+        ];
+    }
+
+    public function getB24HistoryKeyboard(int $id, int $offset, bool $hasMore): array
+    {
+        $nav = [];
+        if ($hasMore) {
+            $nav[] = ['text' => '📜 Ещё', 'callback_data' => "b24_hist_{$id}_{$offset}"];
+        }
+        $nav[] = ['text' => '◀️ Назад', 'callback_data' => 'b24_sub_' . $id];
 
         return ['inline_keyboard' => [$nav]];
     }

@@ -10,6 +10,9 @@ parameters:
     gigachat_client_secret: '%env(GIGACHAT_CLIENT_SECRET)%'
     admin_password: '%env(ADMIN_PASSWORD)%'
     admin_username: '%env(ADMIN_USERNAME)%'
+    bitrix24_portal_url: '%env(BITRIX24_PORTAL_URL)%'
+    bitrix24_webhook_user_id: '%env(BITRIX24_WEBHOOK_USER_ID)%'
+    bitrix24_webhook_token: '%env(BITRIX24_WEBHOOK_TOKEN)%'
 
 services:
     # default configuration for services in *this* file
@@ -48,6 +51,12 @@ services:
     App\Command\BotPollingCommand:
         arguments:
             $adminUsername: '%admin_username%'
+
+    App\Service\Bitrix24Service:
+        arguments:
+            $portalUrl: '%bitrix24_portal_url%'
+            $webhookUserId: '%bitrix24_webhook_user_id%'
+            $webhookToken: '%bitrix24_webhook_token%'
 
     App\Controller\AdminController:
         arguments:

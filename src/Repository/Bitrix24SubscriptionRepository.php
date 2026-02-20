@@ -1,35 +1,37 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
-use App\Entity\Subscription;
+use App\Entity\Bitrix24Subscription;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
- * @extends ServiceEntityRepository<Subscription>
+ * @extends ServiceEntityRepository<Bitrix24Subscription>
  */
-class SubscriptionRepository extends ServiceEntityRepository
+class Bitrix24SubscriptionRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, Subscription::class);
+        parent::__construct($registry, Bitrix24Subscription::class);
     }
 
-    public function findOneByChatId(string $chatId): ?Subscription
+    public function findByBitrix24UserId(int $userId): ?Bitrix24Subscription
     {
-        return $this->findOneBy(['telegramChatId' => $chatId]);
+        return $this->findOneBy(['bitrix24UserId' => $userId]);
     }
 
     /**
-     * @return Subscription[]
+     * @return Bitrix24Subscription[]
      */
     public function findAllActive(): array
     {
         return $this->findBy(['isActive' => true]);
     }
 
-    public function save(Subscription $subscription, bool $flush = false): void
+    public function save(Bitrix24Subscription $subscription, bool $flush = false): void
     {
         $this->getEntityManager()->persist($subscription);
 
@@ -38,7 +40,7 @@ class SubscriptionRepository extends ServiceEntityRepository
         }
     }
 
-    public function remove(Subscription $subscription, bool $flush = false): void
+    public function remove(Bitrix24Subscription $subscription, bool $flush = false): void
     {
         $this->getEntityManager()->remove($subscription);
 
