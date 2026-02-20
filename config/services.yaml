@@ -9,6 +9,7 @@ parameters:
     gigachat_client_id: '%env(GIGACHAT_CLIENT_ID)%'
     gigachat_client_secret: '%env(GIGACHAT_CLIENT_SECRET)%'
     admin_password: '%env(ADMIN_PASSWORD)%'
+    admin_username: '%env(ADMIN_USERNAME)%'
 
 services:
     # default configuration for services in *this* file
@@ -43,6 +44,10 @@ services:
 
     # Alias for the AI service (switch between DeepSeek and GigaChat)
     App\Service\ComplimentGeneratorInterface: '@App\Service\GigaChatService'
+
+    App\Command\BotPollingCommand:
+        arguments:
+            $adminUsername: '%admin_username%'
 
     App\Controller\AdminController:
         arguments:

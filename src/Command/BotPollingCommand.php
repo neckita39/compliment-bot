@@ -29,7 +29,8 @@ class BotPollingCommand extends Command
         private SubscriptionRepository $subscriptionRepository,
         private ComplimentHistoryRepository $complimentHistoryRepository,
         private EntityManagerInterface $entityManager,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        private string $adminUsername = ''
     ) {
         parent::__construct();
     }
@@ -78,6 +79,15 @@ class BotPollingCommand extends Command
         }
     }
 
+    private function isAdmin(array $from): bool
+    {
+        if (empty($this->adminUsername)) {
+            return false;
+        }
+        $username = $from['username'] ?? '';
+        return strcasecmp($username, $this->adminUsername) === 0;
+    }
+
     private function handleMessage(array $message, SymfonyStyle $io): void
     {
         $chatId = (string) $message['chat']['id'];
@@ -92,6 +102,10 @@ class BotPollingCommand extends Command
 
         if ($text === '/start') {
             $this->handleStartCommand($chatId, $message);
+        } elseif ($text === '/admin') {
+            if ($this->isAdmin($message['from'] ?? [])) {
+                $this->handleAdminCommand($chatId);
+            }
         }
     }
 
@@ -100,6 +114,7 @@ class BotPollingCommand extends Command
         $chatId = (string) $callbackQuery['message']['chat']['id'];
         $data = $callbackQuery['data'] ?? '';
         $callbackQueryId = $callbackQuery['id'];
+        $messageId = $callbackQuery['message']['message_id'] ?? null;
 
         $io->writeln(sprintf(
             '[%s] Callback from %s: %s',
@@ -107,6 +122,16 @@ class BotPollingCommand extends Command
             $callbackQuery['from']['first_name'] ?? 'Unknown',
             $data
         ));
+
+        if (str_starts_with($data, 'admin_')) {
+            if (!$this->isAdmin($callbackQuery['from'] ?? [])) {
+                $this->telegramService->answerCallbackQuery($callbackQueryId, 'Нет доступа');
+                return;
+            }
+            $this->telegramService->answerCallbackQuery($callbackQueryId);
+            $this->handleAdminCallback($chatId, $data, $messageId);
+            return;
+        }
 
         if (str_starts_with($data, 'role_')) {
             $this->handleRoleSelect($chatId, substr($data, 5), $callbackQueryId);
@@ -140,10 +165,16 @@ TEXT;
         $subscription = $this->subscriptionRepository->findOneByChatId($chatId);
         $weekendEnabled = $subscription?->isWeekendEnabled();
 
+        $keyboard = $this->telegramService->getMainMenuKeyboard($weekendEnabled);
+
+        if ($this->isAdmin($message['from'] ?? [])) {
+            $keyboard['inline_keyboard'][] = [['text' => '🔧 Панель админа', 'callback_data' => 'admin_list']];
+        }
+
         $this->telegramService->sendMessage(
             $chatId,
             $welcomeText,
-            $this->telegramService->getMainMenuKeyboard($weekendEnabled)
+            $keyboard
         );
     }
 
@@ -333,5 +364,271 @@ TEXT;
             $chatId,
             "✅ Роль изменена на {$role->label()}\n\nТеперь сообщения будут в этом стиле!"
         );
+    }
+
+    // ─── Admin handlers ────────────────────────────────────────
+
+    private function handleAdminCommand(string $chatId): void
+    {
+        $subscriptions = $this->subscriptionRepository->findBy([], ['id' => 'ASC']);
+        $total = count($subscriptions);
+
+        $text = "👥 Подписчики ({$total}):";
+        $keyboard = $this->telegramService->getAdminListKeyboard($subscriptions, 0);
+
+        $this->telegramService->sendMessage($chatId, $text, $keyboard);
+    }
+
+    private function handleAdminCallback(string $chatId, string $data, ?int $messageId): void
+    {
+        if ($data === 'admin_list') {
+            $this->handleAdminList($chatId, 0, $messageId);
+            return;
+        }
+
+        if (preg_match('/^admin_page_(\d+)$/', $data, $m)) {
+            $this->handleAdminList($chatId, (int) $m[1], $messageId);
+            return;
+        }
+
+        if (preg_match('/^admin_sub_(\d+)$/', $data, $m)) {
+            $this->handleAdminSubscriberDetail($chatId, (int) $m[1], $messageId);
+            return;
+        }
+
+        if (preg_match('/^admin_toggle_(\d+)$/', $data, $m)) {
+            $this->handleAdminToggle($chatId, (int) $m[1], $messageId);
+            return;
+        }
+
+        if (preg_match('/^admin_send_(\d+)$/', $data, $m)) {
+            $this->handleAdminSendCompliment($chatId, (int) $m[1], $messageId);
+            return;
+        }
+
+        if (preg_match('/^admin_hist_(\d+)_(\d+)$/', $data, $m)) {
+            $this->handleAdminHistory($chatId, (int) $m[1], (int) $m[2], $messageId);
+            return;
+        }
+
+        if (preg_match('/^admin_hist_(\d+)$/', $data, $m)) {
+            $this->handleAdminHistory($chatId, (int) $m[1], 0, $messageId);
+            return;
+        }
+
+        if (preg_match('/^admin_chwdt_(\d+)$/', $data, $m)) {
+            $this->handleAdminTimePrompt($chatId, (int) $m[1], 'weekday', $messageId);
+            return;
+        }
+
+        if (preg_match('/^admin_chwet_(\d+)$/', $data, $m)) {
+            $this->handleAdminTimePrompt($chatId, (int) $m[1], 'weekend', $messageId);
+            return;
+        }
+
+        if (preg_match('/^admin_swdt_(\d+)_(\d{2}:\d{2})$/', $data, $m)) {
+            $this->handleAdminSetTime($chatId, (int) $m[1], 'weekday', $m[2], $messageId);
+            return;
+        }
+
+        if (preg_match('/^admin_swet_(\d+)_(\d{2}:\d{2})$/', $data, $m)) {
+            $this->handleAdminSetTime($chatId, (int) $m[1], 'weekend', $m[2], $messageId);
+            return;
+        }
+    }
+
+    private function handleAdminList(string $chatId, int $page, ?int $messageId): void
+    {
+        $subscriptions = $this->subscriptionRepository->findBy([], ['id' => 'ASC']);
+        $total = count($subscriptions);
+
+        $text = "👥 Подписчики ({$total}):";
+        $keyboard = $this->telegramService->getAdminListKeyboard($subscriptions, $page);
+
+        if ($messageId) {
+            $this->telegramService->editMessageText($chatId, $messageId, $text, $keyboard);
+        } else {
+            $this->telegramService->sendMessage($chatId, $text, $keyboard);
+        }
+    }
+
+    private function handleAdminSubscriberDetail(string $chatId, int $subscriptionId, ?int $messageId): void
+    {
+        $subscription = $this->subscriptionRepository->find($subscriptionId);
+        if (!$subscription) {
+            return;
+        }
+
+        $name = $subscription->getTelegramFirstName() ?: 'Без имени';
+        $username = $subscription->getTelegramUsername() ? ' (@' . $subscription->getTelegramUsername() . ')' : '';
+        $status = $subscription->isActive() ? '✅ Активна' : '❌ Неактивна';
+        $role = Role::tryFrom($subscription->getRole());
+        $roleLabel = $role ? $role->label() : $subscription->getRole();
+        $weekdayTime = $subscription->getWeekdayTime()?->format('H:i') ?? '—';
+        $weekendTime = $subscription->getWeekendTime()?->format('H:i') ?? '—';
+        $lastCompliment = $subscription->getLastComplimentAt()?->format('d.m.Y') ?? 'нет';
+
+        $text = <<<TEXT
+👤 {$name}{$username}
+Статус: {$status}
+Роль: {$roleLabel}
+Будни: {$weekdayTime} | Выходные: {$weekendTime}
+Последний комплимент: {$lastCompliment}
+TEXT;
+
+        $keyboard = $this->telegramService->getAdminSubscriberKeyboard($subscriptionId, $subscription->isActive());
+
+        if ($messageId) {
+            $this->telegramService->editMessageText($chatId, $messageId, $text, $keyboard);
+        } else {
+            $this->telegramService->sendMessage($chatId, $text, $keyboard);
+        }
+    }
+
+    private function handleAdminToggle(string $chatId, int $subscriptionId, ?int $messageId): void
+    {
+        $subscription = $this->subscriptionRepository->find($subscriptionId);
+        if (!$subscription) {
+            return;
+        }
+
+        $subscription->setIsActive(!$subscription->isActive());
+        $this->entityManager->flush();
+
+        $this->handleAdminSubscriberDetail($chatId, $subscriptionId, $messageId);
+    }
+
+    private function handleAdminSendCompliment(string $chatId, int $subscriptionId, ?int $messageId): void
+    {
+        $subscription = $this->subscriptionRepository->find($subscriptionId);
+        if (!$subscription) {
+            return;
+        }
+
+        $targetChatId = $subscription->getTelegramChatId();
+        $firstName = $subscription->getTelegramFirstName();
+        $role = $subscription->getRole();
+
+        $previousCompliments = $this->complimentHistoryRepository->findRecentTexts(
+            $subscription,
+            $subscription->getHistoryContextSize()
+        );
+
+        try {
+            $compliment = $this->complimentGenerator->generateCompliment($firstName, $role, $previousCompliments);
+
+            $emoji = Role::tryFrom($role)?->emoji() ?? '💬';
+            $this->telegramService->sendMessage($targetChatId, "{$emoji} {$compliment}");
+
+            $subscription->setLastComplimentAt(new \DateTime());
+            $history = new ComplimentHistory();
+            $history->setSubscription($subscription);
+            $history->setComplimentText($compliment);
+            $this->entityManager->persist($history);
+            $this->entityManager->flush();
+
+            $name = $firstName ?: 'подписчику';
+            if ($messageId) {
+                $this->telegramService->editMessageText(
+                    $chatId,
+                    $messageId,
+                    "✅ Комплимент отправлен {$name}!\n\n{$emoji} {$compliment}",
+                    ['inline_keyboard' => [[['text' => '◀️ Назад', 'callback_data' => 'admin_sub_' . $subscriptionId]]]]
+                );
+            }
+        } catch (\Exception $e) {
+            $this->logger->error('Admin send compliment failed', ['error' => $e->getMessage()]);
+            if ($messageId) {
+                $this->telegramService->editMessageText(
+                    $chatId,
+                    $messageId,
+                    "❌ Ошибка отправки: " . $e->getMessage(),
+                    ['inline_keyboard' => [[['text' => '◀️ Назад', 'callback_data' => 'admin_sub_' . $subscriptionId]]]]
+                );
+            }
+        }
+    }
+
+    private function handleAdminHistory(string $chatId, int $subscriptionId, int $offset, ?int $messageId): void
+    {
+        $subscription = $this->subscriptionRepository->find($subscriptionId);
+        if (!$subscription) {
+            return;
+        }
+
+        $limit = 5;
+        $total = $this->complimentHistoryRepository->countBySubscription($subscription);
+        $entries = $this->complimentHistoryRepository->findPaginated($subscription, $offset, $limit);
+        $name = $subscription->getTelegramFirstName() ?: 'Без имени';
+
+        $text = "📜 История: {$name} ({$total} комплиментов)\n";
+
+        if (empty($entries)) {
+            $text .= "\nИстория пуста.";
+        } else {
+            foreach ($entries as $entry) {
+                $date = $entry->getSentAt()?->format('d.m.Y H:i') ?? '—';
+                $snippet = mb_substr($entry->getComplimentText(), 0, 100);
+                if (mb_strlen($entry->getComplimentText()) > 100) {
+                    $snippet .= '...';
+                }
+                $text .= "\n📅 {$date}\n{$snippet}\n";
+            }
+        }
+
+        $hasMore = ($offset + $limit) < $total;
+        $keyboard = $this->telegramService->getAdminHistoryKeyboard($subscriptionId, $offset + $limit, $hasMore);
+
+        if ($messageId) {
+            $this->telegramService->editMessageText($chatId, $messageId, $text, $keyboard);
+        } else {
+            $this->telegramService->sendMessage($chatId, $text, $keyboard);
+        }
+    }
+
+    private function handleAdminTimePrompt(string $chatId, int $subscriptionId, string $type, ?int $messageId): void
+    {
+        $subscription = $this->subscriptionRepository->find($subscriptionId);
+        if (!$subscription) {
+            return;
+        }
+
+        $name = $subscription->getTelegramFirstName() ?: 'Без имени';
+        $typeLabel = $type === 'weekday' ? 'будни' : 'выходные';
+        $currentTime = $type === 'weekday'
+            ? $subscription->getWeekdayTime()?->format('H:i')
+            : $subscription->getWeekendTime()?->format('H:i');
+
+        $text = "⏰ Время ({$typeLabel}) для {$name}:\nТекущее: {$currentTime}";
+        $keyboard = $this->telegramService->getAdminTimeKeyboard($subscriptionId, $type, $currentTime);
+
+        if ($messageId) {
+            $this->telegramService->editMessageText($chatId, $messageId, $text, $keyboard);
+        } else {
+            $this->telegramService->sendMessage($chatId, $text, $keyboard);
+        }
+    }
+
+    private function handleAdminSetTime(string $chatId, int $subscriptionId, string $type, string $time, ?int $messageId): void
+    {
+        $subscription = $this->subscriptionRepository->find($subscriptionId);
+        if (!$subscription) {
+            return;
+        }
+
+        $dateTime = \DateTime::createFromFormat('H:i', $time);
+        if (!$dateTime) {
+            return;
+        }
+
+        if ($type === 'weekday') {
+            $subscription->setWeekdayTime($dateTime);
+        } else {
+            $subscription->setWeekendTime($dateTime);
+        }
+
+        $this->entityManager->flush();
+
+        $this->handleAdminSubscriberDetail($chatId, $subscriptionId, $messageId);
     }
 }

@@ -23,10 +23,23 @@ Telegram bot that sends romantic compliments to the user's wife at scheduled tim
 
 ### User Commands
 - `/start` - Welcome message with subscription keyboard
+- `/admin` - Telegram admin panel (admin only)
 - Callback buttons:
   - "💝 Подписаться" - Subscribe to daily compliments
   - "🚫 Отписаться" - Unsubscribe
   - "💌 Получить комплимент" - Get instant compliment
+
+### Telegram Admin Panel
+- Accessible via `/admin` command or "Панель админа" button in `/start`
+- Admin identified by `ADMIN_USERNAME` env variable (case-insensitive)
+- Single-message navigation via `editMessageText` (no chat clutter)
+- Features:
+  - Subscriber list with pagination (5 per page)
+  - Subscriber detail card (status, role, schedule, last compliment)
+  - Activate/deactivate subscriptions
+  - Set weekday/weekend delivery time from presets
+  - View compliment history with pagination
+  - Send instant compliment to any subscriber
 
 ### Web Admin Panel
 - URL: http://localhost:8848/admin
@@ -47,6 +60,7 @@ Telegram bot that sends romantic compliments to the user's wife at scheduled tim
 TELEGRAM_BOT_TOKEN - Bot token from @BotFather
 DEEPSEEK_API_KEY - DeepSeek API key
 DATABASE_URL - PostgreSQL connection string
+ADMIN_USERNAME - Telegram username (without @) for bot admin panel access
 ```
 
 ## Development Workflow

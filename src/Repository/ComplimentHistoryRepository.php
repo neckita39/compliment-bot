@@ -18,6 +18,31 @@ class ComplimentHistoryRepository extends ServiceEntityRepository
     }
 
     /**
+     * @return ComplimentHistory[]
+     */
+    public function findPaginated(Subscription $subscription, int $offset = 0, int $limit = 5): array
+    {
+        return $this->createQueryBuilder('ch')
+            ->where('ch.subscription = :subscription')
+            ->setParameter('subscription', $subscription)
+            ->orderBy('ch.sentAt', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function countBySubscription(Subscription $subscription): int
+    {
+        return (int) $this->createQueryBuilder('ch')
+            ->select('COUNT(ch.id)')
+            ->where('ch.subscription = :subscription')
+            ->setParameter('subscription', $subscription)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
      * @return string[]
      */
     public function findRecentTexts(Subscription $subscription, int $limit = 50): array
