@@ -30,7 +30,7 @@ class Bitrix24Service
 
     public function sendMessage(int $userId, string $message): bool
     {
-        $message .= "\n[size=10][i]Сообщение сгенерировано роботом, но с любовью[/i][/size]";
+        $message .= "\n[size=10][i]Отправлено автоматически, но чувства настоящие[/i][/size]";
 
         try {
             $response = $this->httpClient->request('POST', $this->buildUrl('im.message.add'), [
