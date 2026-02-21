@@ -1,108 +1,165 @@
-# Compliment Bot - Project Guide
+# Compliment Bot — Гайд по проекту
 
-## Project Overview
-Telegram bot that sends romantic compliments to the user's wife at scheduled times. Built with Symfony 6.4, PostgreSQL, and DeepSeek AI.
+## Обзор проекта
+Мультиплатформенная система автоматической отправки персонализированных AI-сообщений. Поддерживает Telegram и Битрикс24. Генерирует уникальные сообщения с учётом роли получателя и истории предыдущих сообщений (дедупликация).
 
-## Architecture
+## Архитектура
 
-### Core Components
-- **Entity/Subscription.php** - User subscription model with Telegram chat info
-- **Service/DeepSeekService.php** - AI-powered compliment generation via DeepSeek API
-- **Service/TelegramService.php** - Telegram Bot API wrapper
-- **Command/BotPollingCommand.php** - Long polling handler for bot updates
-- **Scheduler/ComplimentSchedule.php** - Automated compliment delivery
+### Основные компоненты
+- **Entity/Subscription.php** — подписка Telegram-пользователя
+- **Entity/Bitrix24Subscription.php** — подписка пользователя Битрикс24
+- **Entity/ComplimentHistory.php** — история сообщений (Telegram)
+- **Entity/Bitrix24ComplimentHistory.php** — история сообщений (Битрикс24)
+- **Service/GigaChatService.php** — генерация сообщений через GigaChat (основной AI)
+- **Service/DeepSeekService.php** — генерация сообщений через DeepSeek (запасной AI)
+- **Service/ComplimentGeneratorInterface.php** — интерфейс генератора сообщений
+- **Service/TelegramService.php** — обёртка Telegram Bot API
+- **Service/Bitrix24Service.php** — интеграция с Битрикс24 (webhook + bot API)
+- **Command/BotPollingCommand.php** — long polling обработчик обновлений
+- **Scheduler/ComplimentSchedule.php** — планировщик автоматической отправки
+- **Controller/AdminController.php** — веб-панель администратора
 
-### Tech Stack
+### Стек технологий
 - PHP 8.2+
 - Symfony 6.4 (Console, Scheduler, Messenger, Doctrine)
 - PostgreSQL 15
 - Docker & docker-compose
-- DeepSeek API (OpenAI-compatible)
+- GigaChat API (основной AI-движок)
+- DeepSeek API (запасной, OpenAI-совместимый)
+- Supervisor (управление процессами)
 
-## Bot Functionality
+## Роли сообщений
+Четыре роли с разными промптами для AI:
+- **Нейтральная** — тёплые, поддерживающие сообщения (универсальная)
+- **Жена** — романтические комплименты
+- **Сестра** — мотивационные сообщения для младшей сестры (детский контент)
+- **Коллега** — профессиональные мотивационные сообщения от лица тимлида (для Битрикс24)
 
-### User Commands
-- `/start` - Welcome message with subscription keyboard
-- `/admin` - Telegram admin panel (admin only)
-- Callback buttons:
-  - "💝 Подписаться" - Subscribe to daily compliments
-  - "🚫 Отписаться" - Unsubscribe
-  - "💌 Получить комплимент" - Get instant compliment
+## Функциональность бота
 
-### Telegram Admin Panel
-- Accessible via `/admin` command or "Панель админа" button in `/start`
-- Admin identified by `ADMIN_USERNAME` env variable (case-insensitive)
-- Single-message navigation via `editMessageText` (no chat clutter)
-- Features:
-  - Subscriber list with pagination (5 per page)
-  - Subscriber detail card (status, role, schedule, last compliment)
-  - Activate/deactivate subscriptions
-  - Set weekday/weekend delivery time from presets
-  - View compliment history with pagination
-  - Send instant compliment to any subscriber
+### Команды пользователя
+- `/start` — приветствие и главное меню с кнопками
+- `/admin` — Telegram-админка (только для админа)
+- Кнопки главного меню:
+  - "Подписаться" — подписка на ежедневные сообщения
+  - "Отписаться" — отмена подписки
+  - "Получить комплимент" — моментальное сообщение
+  - "Выбрать роль" — выбор роли (Нейтральная/Жена/Сестра)
+  - "Выходные: ВКЛ/ВЫКЛ" — переключение отправки по выходным
 
-### Web Admin Panel
+### Telegram-админка
+- Доступ через `/admin` или кнопку "Панель админа" в `/start`
+- Админ определяется по `ADMIN_USERNAME` (без учёта регистра)
+- Навигация через `editMessageText` (без засорения чата)
+- Управление Telegram-подписчиками:
+  - Список с пагинацией (5 на страницу)
+  - Карточка подписчика (статус, роль, расписание, последнее сообщение)
+  - Активация/деактивация, настройка времени отправки
+  - Просмотр истории сообщений, отправка моментального сообщения
+- Управление Битрикс24-подписчиками:
+  - Список с пагинацией, добавление/удаление
+  - Карточка с настройками времени и истории
+  - Отправка моментального сообщения через Битрикс24
+
+### Веб-админка
 - URL: http://localhost:8848/admin
-- Password-protected (uses ADMIN_PASSWORD from .env)
-- Features:
-  - View all subscriptions with statistics
-  - Activate/deactivate subscriptions
-  - Delete subscriptions
-  - See last compliment timestamp
+- Авторизация по паролю (ADMIN_PASSWORD из .env)
+- Просмотр статистики и всех подписок
+- Активация/деактивация/удаление подписок
+- Настройка роли, времени отправки, размера контекста истории
 
-### Scheduled Delivery
-- **Weekdays (Mon-Fri)**: 7:00 AM
-- **Weekends (Sat-Sun)**: 9:00 AM
-- Timezone: Europe/Moscow
+### Расписание отправки
+- Планировщик запускается каждую минуту
+- Время настраивается индивидуально для каждого подписчика
+- Поддержка раздельного времени для будней и выходных
+- Возможность отключить отправку по выходным
+- Часовой пояс: Europe/Moscow
 
-## Environment Variables
+### Дедупликация сообщений
+- Настраиваемый размер контекста (сколько предыдущих сообщений учитывать)
+- AI получает историю и генерирует уникальное сообщение
+- Предотвращает повторение фраз, структуры и ключевых слов
+
+## Переменные окружения
 ```
-TELEGRAM_BOT_TOKEN - Bot token from @BotFather
-DEEPSEEK_API_KEY - DeepSeek API key
-DATABASE_URL - PostgreSQL connection string
-ADMIN_USERNAME - Telegram username (without @) for bot admin panel access
+TELEGRAM_BOT_TOKEN        — Токен бота от @BotFather
+GIGACHAT_CLIENT_ID        — Client ID GigaChat
+GIGACHAT_CLIENT_SECRET    — Client Secret GigaChat
+DEEPSEEK_API_KEY          — API-ключ DeepSeek (запасной AI)
+DATABASE_URL              — Строка подключения PostgreSQL
+ADMIN_PASSWORD            — Пароль веб-админки
+ADMIN_USERNAME            — Telegram username (без @) для доступа к Telegram-админке
+BITRIX24_PORTAL_URL       — URL портала Битрикс24
+BITRIX24_WEBHOOK_USER_ID  — ID пользователя вебхука Битрикс24
+BITRIX24_WEBHOOK_TOKEN    — Токен вебхука Битрикс24
+BITRIX24_BOT_ID           — ID бота Битрикс24 (для imbot.message.add)
+BITRIX24_BOT_CLIENT_ID    — Client ID бота Битрикс24 (для imbot.message.add)
 ```
 
-## Development Workflow
+## Разработка
 
-### Setup
+### Локальный запуск
 ```bash
-# Install dependencies
 composer install
-
-# Run migrations
 php bin/console doctrine:migrations:migrate
-
-# Start long polling
 php bin/console app:bot:polling
-
-# Run scheduler (in separate terminal)
+# В отдельном терминале:
 php bin/console messenger:consume scheduler_default
 ```
 
 ### Docker
 ```bash
 docker-compose up -d
-docker-compose exec php bin/console app:bot:polling
+# Миграции выполняются автоматически через entrypoint.sh
 ```
 
-## Code Conventions
-- Use strict types in all PHP files
-- Follow Symfony best practices
-- Handle all Telegram API errors gracefully
-- Log all DeepSeek API errors with context
-- Use fallback compliments when AI unavailable
+### Проверка здоровья
+```bash
+docker-compose exec app php bin/check-health.php
+```
 
-## Database Schema
-- **subscriptions** table:
-  - telegram_chat_id (indexed) - Telegram user ID
-  - telegram_username, telegram_first_name - User info
-  - is_active (indexed) - Subscription status
-  - created_at - Subscription date
-  - last_compliment_at - Last compliment timestamp
+## Соглашения по коду
+- Строгая типизация (`declare(strict_types=1)`) во всех PHP-файлах
+- Соблюдение best practices Symfony
+- Грамотная обработка ошибок Telegram и AI API
+- Логирование ошибок с контекстом
+- Фоллбэк на заготовленные сообщения при недоступности AI
 
-## Notes
-- DeepSeek API is OpenAI-compatible (uses same request format)
-- Bot uses inline keyboard for better UX
-- Fallback compliments ensure bot always works
-- Long polling preferred over webhooks for simplicity
+## Схема БД
+
+### subscriptions (Telegram)
+- `telegram_chat_id` (индекс) — ID пользователя
+- `telegram_username`, `telegram_first_name` — инфо о пользователе
+- `is_active` (индекс) — статус подписки
+- `role` — роль для генерации сообщений
+- `weekday_time`, `weekend_time` — время отправки
+- `weekend_enabled` — включены ли выходные
+- `history_context_size` — размер контекста для дедупликации
+- `created_at`, `last_compliment_at` — временные метки
+
+### bitrix24_subscriptions (Битрикс24)
+- `bitrix24_user_id` (индекс) — ID пользователя Б24
+- `bitrix24_user_name`, `portal_url` — инфо о пользователе
+- `is_active` (индекс), `weekday_time`, `weekend_time`
+- `weekend_enabled`, `history_context_size`
+- `created_at`, `last_compliment_at`
+
+### compliment_history / bitrix24_compliment_history
+- История отправленных сообщений для дедупликации
+
+## Деплой
+- Бот работает на удалённом сервере
+- Миграции выполняются автоматически при старте контейнера (docker/php/entrypoint.sh)
+- Push кода + перезапуск контейнеров = деплой
+
+## Supervisor-процессы
+1. `telegram-bot` — long polling бота (app:bot:polling)
+2. `messenger-consumer` — обработчик очереди сообщений
+3. `scheduler-worker` — планировщик отправки
+4. `cron` — системный cron
+
+## Заметки
+- Long polling вместо вебхуков (проще для разработки)
+- Планировщик использует Symfony Messenger для асинхронного выполнения
+- Битрикс24 поддерживает два режима: webhook и bot API (imbot.message.add)
+- Фоллбэк-комплименты гарантируют работу бота даже без AI
