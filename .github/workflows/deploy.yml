@@ -1,0 +1,21 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest code
+        run: |
+          cd ~/Desktop/compliment-bot
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Build and deploy
+        run: |
+          cd ~/Desktop/compliment-bot
+          export PATH="/usr/local/bin:$PATH"
+          docker compose up -d --build
